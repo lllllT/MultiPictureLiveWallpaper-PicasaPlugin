@@ -26,4 +26,7 @@
   <string name="msg_fail_get_albums">Failed to get Albums.</string>
   <string name="msg_no_albums">Album is not found.</string>
   <string name="msg_no_album_select_msg">Album is not selected.</string>
+
+  <!-- DO NOT localize below -->
+  <string name="header_app_name">MPLWP-PicasaAlbumSource/0.0.1</string>
 </resources>

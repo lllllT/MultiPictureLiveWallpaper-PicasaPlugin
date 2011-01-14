@@ -5,16 +5,6 @@ import org.tamanegi.wallpaper.multipicture.picasa.content.Feed;
 import org.tamanegi.wallpaper.multipicture.picasa.content.PicasaUrl;
 import org.tamanegi.wallpaper.multipicture.plugin.PictureSourceContract;
 
-import com.google.api.client.googleapis.GoogleHeaders;
-import com.google.api.client.googleapis.GoogleTransport;
-import com.google.api.client.http.HttpRequest;
-import com.google.api.client.http.HttpResponseException;
-import com.google.api.client.http.HttpTransport;
-import com.google.api.client.xml.atom.AtomParser;
-
-import android.accounts.Account;
-import android.accounts.AccountManager;
-import android.accounts.AccountManagerFuture;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.ComponentName;
@@ -37,12 +27,13 @@ public class PicasaAlbumSource extends PreferenceActivity
 
     private String key;
     private boolean need_clear;
-    private Account account;
+    private String account_name;
     private String user_id;
 
     private SharedPreferences pref;
     private String[] album_ids;
 
+    private Connection connection;
     private boolean processing = false;
     private Feed feed = null;
 
@@ -56,13 +47,13 @@ public class PicasaAlbumSource extends PreferenceActivity
         need_clear = intent.getBooleanExtra(
             PictureSourceContract.EXTRA_CLEAR_PREVIOUS, true);
         key = intent.getStringExtra(PictureSourceContract.EXTRA_KEY);
-        String account_val = intent.getStringExtra(EXTRA_ACCOUNT);
+        String account_name = intent.getStringExtra(EXTRA_ACCOUNT);
         user_id = intent.getStringExtra(EXTRA_USER_ID);
-        if(key == null || account_val == null || user_id == null) {
+        if(key == null || account_name == null || user_id == null) {
             finish();
         }
 
-        account = new Account(account_val, Settings.ACCOUNT_TYPE);
+        connection = new Connection(this, account_name);
 
         addPreferencesFromResource(R.xml.album_pref);
         pref = PreferenceManager.getDefaultSharedPreferences(this);
@@ -149,7 +140,7 @@ public class PicasaAlbumSource extends PreferenceActivity
         editor.putString(String.format(Settings.MODE_KEY, key),
                          Settings.MODE_ALBUM_VAL);
         editor.putString(String.format(Settings.ACCOUNT_KEY, key),
-                         account.name);
+                         account_name);
         editor.putString(String.format(Settings.ALBUM_USER_KEY, key),
                          user_id);
         editor.putString(String.format(Settings.ALBUM_ID_KEY, key),
@@ -225,16 +216,12 @@ public class PicasaAlbumSource extends PreferenceActivity
         extends AsyncTask<Void, Void, Feed>
         implements DialogInterface.OnCancelListener
     {
-        private AccountManager accmgr;
         private ProgressDialog progress;
-        private AccountManagerFuture<Bundle> authtoken_future;
 
         @Override
         protected void onPreExecute()
         {
             processing = true;
-
-            accmgr = AccountManager.get(PicasaAlbumSource.this);
 
             progress = ProgressDialog.show(
                 PicasaAlbumSource.this,
@@ -247,14 +234,16 @@ public class PicasaAlbumSource extends PreferenceActivity
         @Override
         protected Feed doInBackground(Void... params)
         {
-            return getFeed();
+            PicasaUrl url = PicasaUrl.userBasedUrl(user_id);
+            url.kind = "album";
+            return connection.executeGetFeed(url);
         }
 
         @Override
         protected void onPostExecute(Feed result)
         {
-            progress.dismiss();
             updateAlbumList(result);
+            progress.dismiss();
 
             if(result != null) {
                 processing = false;
@@ -264,79 +253,9 @@ public class PicasaAlbumSource extends PreferenceActivity
         @Override
         public void onCancel(DialogInterface dialog)
         {
-            if(authtoken_future != null) {
-                authtoken_future.cancel(true);
-            }
+            connection.cancel(true);
             cancel(true);
             finish();
-        }
-
-        private Feed getFeed()
-        {
-            boolean firsttime = true;
-            while(true) {
-                String authtoken = getAuthToken();
-                if(authtoken == null) {
-                    return null;
-                }
-
-                HttpTransport transport = GoogleTransport.create();
-                GoogleHeaders headers = (GoogleHeaders)transport.defaultHeaders;
-                headers.setApplicationName("MPLWP-PicasaAlbumSource/0.0.1");
-                headers.gdataVersion = "2";
-                headers.setGoogleLogin(authtoken);
-
-                AtomParser parser = new AtomParser();
-                parser.namespaceDictionary = Feed.NAMESPACES;
-                transport.addParser(parser);
-
-                HttpRequest request = transport.buildGetRequest();
-
-                PicasaUrl url = PicasaUrl.userBasedUrl(user_id);
-                url.kind = "album";
-                request.url = url;
-
-                try {
-                    return request.execute().parseAs(Feed.class);
-                    // todo: handle "next" link
-                }
-                catch(HttpResponseException e) {
-                    if(e.response.statusCode == 401 ||
-                       e.response.statusCode == 403) {
-                        if(firsttime) {
-                            accmgr.invalidateAuthToken(
-                                Settings.ACCOUNT_TYPE, authtoken);
-
-                            firsttime = false;
-                            continue;
-                        }
-                    }
-
-                    e.printStackTrace();
-                    return null;
-                }
-                catch(Exception e) {
-                    e.printStackTrace();
-                    return null;
-                }
-
-                // not reach here
-            }
-        }
-
-        private String getAuthToken()
-        {
-            authtoken_future = accmgr.getAuthToken(
-                account, Settings.TOKEN_TYPE, null,
-                PicasaAlbumSource.this, null, null);
-
-            try {
-                Bundle result = authtoken_future.getResult();
-                return result.getString(AccountManager.KEY_AUTHTOKEN);
-            }
-            catch(Exception e) {
-                return null;
-            }
         }
     }
 }
