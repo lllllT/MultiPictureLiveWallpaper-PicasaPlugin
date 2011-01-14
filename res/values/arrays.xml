@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- selection order -->
+  <string-array name="pref_select_order_entries">
+    <item>Name (ascending order)</item>
+    <item>Name (descending order)</item>
+    <item>Date (oldest first)</item>
+    <item>Date (newest first)</item>
+    <item>Random</item>
+    <item>Shuffle</item>
+  </string-array>
+
+  <string-array name="pref_select_order_entryvalues">
+    <item>name_asc</item>
+    <item>name_desc</item>
+    <item>date_asc</item>
+    <item>date_desc</item>
+    <item>random</item>
+    <item>shuffle</item>
+  </string-array>
+</resources>

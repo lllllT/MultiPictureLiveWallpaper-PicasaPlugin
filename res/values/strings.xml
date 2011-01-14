@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="app_name">Picasa plugin for MultiPicture Live Wallpaper</string>
+  <string name="setting_title">Picasa Web Album</string>
+
+  <string name="pref_cat_album_title">Album Selection</string>
+
+  <string name="pref_cat_selection_title">Selection Settings</string>
+  <string name="pref_select_order_title">Picture selection order</string>
+  <string name="pref_select_order_summary">Selection order when changing picture.</string>
+
+  <string name="pref_featured_title">Featured Photos</string>
+  <string name="pref_featured_summary">Explore Featured Photos</string>
+  <string name="pref_featured_desc">Picasa Web Album : Featured Photos</string>
+
+  <string name="pref_myphotos_title">My Photos</string>
+  <string name="pref_myphotos_summary">Select from My Albums</string>
+  <string name="pref_myphotos_desc_base">Picasa Web Album : My Photos / %s</string>
+
+  <string name="pref_account_title">Google Account</string>
+  <string name="pref_account_add_button">Add Account</string>
+
+  <string name="msg_loading">Loading.</string>
+  <string name="msg_no_account">Google Account is not found.\nAdd Account first.</string>
+  <string name="msg_fail_add_account">Failed to add Google Account.</string>
+  <string name="msg_fail_get_albums">Failed to get Albums.</string>
+  <string name="msg_no_albums">Album is not found.</string>
+  <string name="msg_no_album_select_msg">Album is not selected.</string>
+</resources>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <CheckBoxPreference
+     android:key="featured"
+     android:persistent="false"
+     android:title="@string/pref_featured_title"
+     android:summary="@string/pref_featured_summary"
+     android:widgetLayout="@layout/preference_widget_radiobutton"
+     />
+  <CheckBoxPreference
+     android:key="myphotos"
+     android:persistent="false"
+     android:title="@string/pref_myphotos_title"
+     android:summary="@string/pref_myphotos_summary"
+     android:widgetLayout="@layout/preference_widget_radiobutton"
+     />
+
+</PreferenceScreen>
