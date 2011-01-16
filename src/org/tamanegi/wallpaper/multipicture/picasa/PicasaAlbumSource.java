@@ -47,13 +47,13 @@ public class PicasaAlbumSource extends PreferenceActivity
         need_clear = intent.getBooleanExtra(
             PictureSourceContract.EXTRA_CLEAR_PREVIOUS, true);
         key = intent.getStringExtra(PictureSourceContract.EXTRA_KEY);
-        String account_name = intent.getStringExtra(EXTRA_ACCOUNT);
+        account_name = intent.getStringExtra(EXTRA_ACCOUNT);
         user_id = intent.getStringExtra(EXTRA_USER_ID);
         if(key == null || account_name == null || user_id == null) {
             finish();
         }
 
-        connection = new Connection(this, account_name);
+        connection = new Connection(this);
 
         addPreferencesFromResource(R.xml.album_pref);
         pref = PreferenceManager.getDefaultSharedPreferences(this);
@@ -118,7 +118,7 @@ public class PicasaAlbumSource extends PreferenceActivity
 
             if(check.isChecked()) {
                 album_ids.append(entry.id).append(" ");
-                album_names.append(entry.mediaGroup.title).append(", ");
+                album_names.append(entry.getTitle()).append(", ");
                 is_checked = true;
             }
         }
@@ -156,7 +156,7 @@ public class PicasaAlbumSource extends PreferenceActivity
             getString(R.string.pref_myphotos_desc_base,
                       album_names.substring(0, album_names.length() - 2)));
         result.putExtra(PictureSourceContract.EXTRA_SERVICE_NAME,
-                        new ComponentName(this, PickService.class));
+                        new ComponentName(this, PicasaPickService.class));
 
         setResult(RESULT_OK, result);
         return true;
@@ -170,20 +170,28 @@ public class PicasaAlbumSource extends PreferenceActivity
                     finish();
                 }
             };
+        DialogInterface.OnCancelListener finishOnCancelListener =
+            new DialogInterface.OnCancelListener() {
+                public void onCancel(DialogInterface dialog) {
+                    finish();
+                }
+            };
 
         if(feed == null) {
             new AlertDialog.Builder(this)
                 .setTitle(R.string.pref_myphotos_title)
                 .setMessage(R.string.msg_fail_get_albums)
                 .setPositiveButton(android.R.string.ok, finishOnClickListener)
+                .setOnCancelListener(finishOnCancelListener)
                 .show();
             return;
         }
-        if(feed.entries.size() < 1) {
+        if(feed.entries == null || feed.entries.size() < 1) {
             new AlertDialog.Builder(this)
                 .setTitle(R.string.pref_myphotos_title)
                 .setMessage(R.string.msg_no_albums)
                 .setPositiveButton(android.R.string.ok, finishOnClickListener)
+                .setOnCancelListener(finishOnCancelListener)
                 .show();
             return;
         }
@@ -195,9 +203,9 @@ public class PicasaAlbumSource extends PreferenceActivity
         for(Entry entry : feed.entries) {
             CheckBoxPreference check = new CheckBoxPreference(this);
             check.setPersistent(false);
-            check.setTitle(entry.mediaGroup.title);
-            if(entry.mediaGroup.description != null) {
-                check.setSummary(entry.mediaGroup.description);
+            check.setTitle(entry.getTitle());
+            if(entry.getDescription() != null) {
+                check.setSummary(entry.getDescription());
             }
             for(String id : album_ids) {
                 if(id.equals(entry.id)) {
@@ -236,7 +244,7 @@ public class PicasaAlbumSource extends PreferenceActivity
         {
             PicasaUrl url = PicasaUrl.userBasedUrl(user_id);
             url.kind = "album";
-            return connection.executeGetFeed(url);
+            return connection.executeGetFeed(url, account_name);
         }
 
         @Override

@@ -23,7 +23,6 @@ import android.os.Bundle;
 public class Connection
 {
     private Context context;
-    private Account account;
 
     private AccountManager accmgr;
     private AccountManagerFuture<Bundle> auth_future = null;
@@ -31,10 +30,9 @@ public class Connection
     private HttpTransport transport;
     private GoogleHeaders headers;
 
-    public Connection(Context context, String account_name)
+    public Connection(Context context)
     {
         this.context = context;
-        this.account = new Account(account_name, Settings.ACCOUNT_TYPE);
 
         accmgr = AccountManager.get(context);
 
@@ -49,20 +47,14 @@ public class Connection
         transport.addParser(parser);
     }
 
-    public void cancel(boolean mayInterruptIfRunning)
-    {
-        if(auth_future != null) {
-            auth_future.cancel(mayInterruptIfRunning);
-        }
-    }
-
-    public Feed executeGetFeed(GenericUrl url)
+    public Feed executeGetFeed(GenericUrl url, String account_name)
     {
         Feed result = null;
         while(true) {
             Feed data;
             try {
-                data = executeGet(url).parseAs(Feed.class);
+                HttpResponse response = executeGet(url, account_name);
+                data = (response != null ? response.parseAs(Feed.class) : null);
             }
             catch(IOException e) {
                 e.printStackTrace();
@@ -72,10 +64,10 @@ public class Connection
                 break;
             }
 
-            if(result == null) {
+            if(result == null || result.entries == null) {
                 result = data;
             }
-            else {
+            else if(data.entries != null) {
                 result.entries.addAll(data.entries);
             }
 
@@ -90,16 +82,19 @@ public class Connection
         return result;
     }
 
-    public HttpResponse executeGet(GenericUrl url)
+    public HttpResponse executeGet(GenericUrl url, String account_name)
     {
         boolean firsttime = true;
         while(true) {
-            String authtoken = getAuthToken();
-            if(authtoken == null) {
-                return null;
-            }
+            String authtoken = null;
+            if(account_name != null && account_name.length() > 0) {
+                authtoken = getAuthToken(account_name);
+                if(authtoken == null) {
+                    return null;
+                }
 
-            headers.setGoogleLogin(authtoken);
+                headers.setGoogleLogin(authtoken);
+            }
 
             HttpRequest request = transport.buildGetRequest();
             request.url = url;
@@ -110,7 +105,8 @@ public class Connection
             catch(HttpResponseException e) {
                 if(e.response.statusCode == 401 ||
                    e.response.statusCode == 403) {
-                    if(firsttime) {
+                    if(firsttime &&
+                       account_name != null && account_name.length() > 0) {
                         accmgr.invalidateAuthToken(
                             Settings.ACCOUNT_TYPE, authtoken);
 
@@ -131,8 +127,17 @@ public class Connection
         }
     }
 
-    private String getAuthToken()
+    public void cancel(boolean mayInterruptIfRunning)
     {
+        if(auth_future != null) {
+            auth_future.cancel(mayInterruptIfRunning);
+        }
+    }
+
+    private String getAuthToken(String account_name)
+    {
+        Account account = new Account(account_name, Settings.ACCOUNT_TYPE);
+
         if(context instanceof Activity) {
             auth_future = accmgr.getAuthToken(
                 account, Settings.TOKEN_TYPE, null,

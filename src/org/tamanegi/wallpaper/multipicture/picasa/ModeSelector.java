@@ -103,7 +103,7 @@ public class ModeSelector extends PreferenceActivity
         result.putExtra(PictureSourceContract.EXTRA_DESCRIPTION,
                         getString(R.string.pref_featured_desc));
         result.putExtra(PictureSourceContract.EXTRA_SERVICE_NAME,
-                        new ComponentName(this, PickService.class));
+                        new ComponentName(this, PicasaPickService.class));
 
         setResult(RESULT_OK, result);
     }
