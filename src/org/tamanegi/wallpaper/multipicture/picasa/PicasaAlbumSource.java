@@ -244,7 +244,7 @@ public class PicasaAlbumSource extends PreferenceActivity
         {
             PicasaUrl url = PicasaUrl.userBasedUrl(user_id);
             url.kind = "album";
-            return connection.executeGetFeed(url, account_name);
+            return connection.executeGetFeed(url, account_name, true);
         }
 
         @Override

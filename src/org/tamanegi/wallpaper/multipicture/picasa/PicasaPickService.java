@@ -130,7 +130,7 @@ public class PicasaPickService extends LazyPickService
             PicasaLazyPicker picker = pickers[0];
 
             for(GenericUrl url : picker.urls) {
-                cached_data.updatePhotoList(url, picker.account_name);
+                cached_data.updatePhotoList(url, picker.account_name, false);
             }
 
             return cached_data.getCachedContent(

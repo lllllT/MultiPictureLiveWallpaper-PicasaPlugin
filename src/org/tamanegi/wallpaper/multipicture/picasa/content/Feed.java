@@ -24,7 +24,6 @@ public class Feed
     }
 
     @Key("link") public List<Link> links;
-    @Key("gphoto:user") public String userId;
     @Key("entry") public List<Entry> entries;
 
     public String getLink(String rel)

@@ -47,7 +47,8 @@ public class Connection
         transport.addParser(parser);
     }
 
-    public Feed executeGetFeed(GenericUrl url, String account_name)
+    public Feed executeGetFeed(GenericUrl url, String account_name,
+                               boolean follow_next)
     {
         Feed result = null;
         while(true) {
@@ -71,7 +72,7 @@ public class Connection
                 result.entries.addAll(data.entries);
             }
 
-            String next_url = data.getNextLink();
+            String next_url = (follow_next ? data.getNextLink() : null);
             if(next_url == null) {
                 break;
             }

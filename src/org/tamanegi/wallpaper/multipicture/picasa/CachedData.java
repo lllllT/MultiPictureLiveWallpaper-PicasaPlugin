@@ -38,33 +38,21 @@ public class CachedData
     private static final int MAX_CACHED_CONTENT = 50;
     private static final int BUFFER_SIZE = 1024 * 8;
 
+    private Context context;
     private Connection connection;
     private DataHelper helper;
     private Random random;
-    private File base_dir;
 
     public CachedData(Context context)
     {
+        this.context = context;
         connection = new Connection(context);
         helper = new DataHelper(context);
         random = new Random();
-
-        try {
-            Method method = context.getClass().getMethod("getExternalCacheDir");
-            base_dir = (File)method.invoke(context);
-        }
-        catch(Exception e) {
-            base_dir = new File(Environment.getExternalStorageDirectory(),
-                                "Android" + File.separator +
-                                "data" + File.separator +
-                                context.getPackageName() + File.separator +
-                                "cache");
-        }
-        base_dir.mkdirs();
     }
 
     public synchronized void updatePhotoList(
-        GenericUrl url, String account_name)
+        GenericUrl url, String account_name, boolean follow_next)
     {
         String location = url.build();
         SQLiteDatabase db = helper.getWritableDatabase();
@@ -80,7 +68,8 @@ public class CachedData
                 return;
             }
 
-            Feed feed = connection.executeGetFeed(url, account_name);
+            Feed feed =
+                connection.executeGetFeed(url, account_name, follow_next);
             if(feed != null && feed.entries != null) {
                 updatePhotoList(db, location, account_name, feed);
             }
@@ -335,8 +324,8 @@ public class CachedData
         try {
             if(cur.moveToFirst()) {
                 String id = cur.getString(CacheInfoColumns.COL_IDX_ID);
-                File file = new File(base_dir, id);
-                if(file.isFile()) {
+                File file = getCacheFile(id);
+                if(file != null && file.isFile()) {
                     updateCacheLastAccess(db, url, account_name);
                     return file.getAbsolutePath();
                 }
@@ -356,7 +345,10 @@ public class CachedData
             return null;
         }
 
-        File file = new File(base_dir, String.valueOf(id));
+        File file = getCacheFile(String.valueOf(id));
+        if(file == null) {
+            return null;
+        }
 
         // get content
         HttpResponse response =
@@ -425,8 +417,10 @@ public class CachedData
                 cur.moveToNext();
 
                 String id = cur.getString(CacheInfoColumns.COL_IDX_ID);
-                File file = new File(base_dir, id);
-                file.delete();
+                File file = getCacheFile(id);
+                if(file != null) {
+                    file.delete();
+                }
 
                 db.delete(CacheInfoColumns.TABLE_NAME,
                           CacheInfoColumns._ID + " = ?",
@@ -436,6 +430,33 @@ public class CachedData
         finally {
             cur.close();
         }
+    }
+
+    private File getCacheFile(String name)
+    {
+        File base_dir = null;
+
+        try {
+            Method method = context.getClass().getMethod("getExternalCacheDir");
+            base_dir = (File)method.invoke(context);
+        }
+        catch(Exception e) {
+            File ext_dir = Environment.getExternalStorageDirectory();
+            if(ext_dir != null) {
+                base_dir = new File(ext_dir,
+                                    "Android" + File.separator +
+                                    "data" + File.separator +
+                                    context.getPackageName() + File.separator +
+                                    "cache");
+            }
+        }
+
+        if(base_dir == null) {
+            return null;
+        }
+
+        base_dir.mkdirs();
+        return new File(base_dir, name);
     }
 
     private Integer parseInteger(String val)
