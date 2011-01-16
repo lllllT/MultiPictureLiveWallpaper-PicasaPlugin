@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.security.MessageDigest;
 import java.util.Random;
 
 import org.tamanegi.wallpaper.multipicture.picasa.content.Entry;
@@ -324,7 +325,7 @@ public class CachedData
         try {
             if(cur.moveToFirst()) {
                 String id = cur.getString(CacheInfoColumns.COL_IDX_ID);
-                File file = getCacheFile(id);
+                File file = getCacheFile(id, url);
                 if(file != null && file.isFile()) {
                     updateCacheLastAccess(db, url, account_name);
                     return file.getAbsolutePath();
@@ -345,7 +346,7 @@ public class CachedData
             return null;
         }
 
-        File file = getCacheFile(String.valueOf(id));
+        File file = getCacheFile(String.valueOf(id), url);
         if(file == null) {
             return null;
         }
@@ -417,7 +418,8 @@ public class CachedData
                 cur.moveToNext();
 
                 String id = cur.getString(CacheInfoColumns.COL_IDX_ID);
-                File file = getCacheFile(id);
+                String url = cur.getString(CacheInfoColumns.COL_IDX_LOCATION);
+                File file = getCacheFile(id, url);
                 if(file != null) {
                     file.delete();
                 }
@@ -432,7 +434,7 @@ public class CachedData
         }
     }
 
-    private File getCacheFile(String name)
+    private File getCacheFile(String id, String url)
     {
         File base_dir = null;
 
@@ -456,7 +458,23 @@ public class CachedData
         }
 
         base_dir.mkdirs();
-        return new File(base_dir, name);
+
+        StringBuilder name = new StringBuilder();
+        name.append(id).append("_");
+
+        try {
+            byte[] digest =
+                MessageDigest.getInstance("MD5").digest(url.getBytes("UTF-8"));
+            for(byte b : digest) {
+                name.append(Integer.toHexString((b >> 4) & 0xf))
+                    .append(Integer.toHexString(b & 0xf));
+            }
+        }
+        catch(Exception e) {
+            // ignore
+        }
+
+        return new File(base_dir, name.toString());
     }
 
     private Integer parseInteger(String val)
@@ -494,6 +512,7 @@ public class CachedData
             _ID, LOCATION, ACCOUNT_NAME, LAST_UPDATE, LAST_ACCESS
         };
         public static final int COL_IDX_ID = 0;
+        public static final int COL_IDX_LOCATION = 1;
         public static final int COL_IDX_LAST_UPDATE = 3;
 
         public static final String CACHE_TYPE_LIST = "list";
