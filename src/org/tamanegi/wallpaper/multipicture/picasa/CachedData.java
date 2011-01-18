@@ -216,40 +216,60 @@ public class CachedData
 
         if(order == OrderType.name_asc) {
             if(last_content != null) {
-                selection = AlbumColumns.CONTENT_NAME + " >= ?";
+                selection =
+                    AlbumColumns.CONTENT_NAME + " > ? OR " +
+                    "( " +
+                    AlbumColumns.CONTENT_NAME + " = ? AND " +
+                    AlbumColumns.PHOTO_ID + " > ?" +
+                    " )";
                 selection_arg = last_content.name;
             }
             order_by = AlbumColumns.CONTENT_NAME + " ASC";
         }
         else if(order == OrderType.name_desc) {
             if(last_content != null) {
-                selection = AlbumColumns.CONTENT_NAME + " <= ?";
+                selection =
+                    AlbumColumns.CONTENT_NAME + " < ? OR " +
+                    "( " +
+                    AlbumColumns.CONTENT_NAME + " = ? AND " +
+                    AlbumColumns.PHOTO_ID + " > ?" +
+                    " )";
                 selection_arg = last_content.name;
             }
             order_by = AlbumColumns.CONTENT_NAME + " DESC";
         }
         else if(order == OrderType.date_asc) {
             if(last_content != null) {
-                selection = AlbumColumns.TIMESTAMP + " >= ?";
+                selection =
+                    AlbumColumns.TIMESTAMP + " > ? OR " +
+                    "( " +
+                    AlbumColumns.TIMESTAMP + " = ? AND " +
+                    AlbumColumns.PHOTO_ID + " > ?" +
+                    " )";
                 selection_arg = last_content.timestamp;
             }
             order_by = AlbumColumns.TIMESTAMP + " ASC";
         }
         else if(order == OrderType.date_desc) {
             if(last_content != null) {
-                selection = AlbumColumns.TIMESTAMP + " <= ?";
+                selection =
+                    AlbumColumns.TIMESTAMP + " < ? OR " +
+                    "( " +
+                    AlbumColumns.TIMESTAMP + " = ? AND " +
+                    AlbumColumns.PHOTO_ID + " > ?" +
+                    " )";
                 selection_arg = last_content.timestamp;
             }
             order_by = AlbumColumns.TIMESTAMP + " DESC";
         }
         else {
+            last_content = null;
             limit = null;
         }
 
         StringBuilder location_where = new StringBuilder();
         String[] where_args = new String[locations.length + 1 +
-                                         (last_content != null ? 1 : 0) +
-                                         (selection != null ? 1 : 0)];
+                                         (selection != null ? 3 : 0)];
         for(int i = 0; i < locations.length; i++) {
             location_where
                 .append(i == 0 ? "( " : " OR ")
@@ -260,11 +280,10 @@ public class CachedData
         location_where.append(" )");
 
         where_args[locations.length + 0] = account_name;
-        if(last_content != null) {
-            where_args[locations.length + 1] = last_content.photo_id;
-        }
         if(selection != null) {
+            where_args[locations.length + 1] = selection_arg;
             where_args[locations.length + 2] = selection_arg;
+            where_args[locations.length + 3] = last_content.photo_id;
         }
 
         Cursor cur = db.query(
@@ -272,26 +291,24 @@ public class CachedData
             AlbumColumns.ALL_COLUMNS,
             location_where + " AND " +
             AlbumColumns.ACCOUNT_NAME + " = ?" +
-            (last_content != null ?
-             " AND " + AlbumColumns.PHOTO_ID + " > ?" : "") +
-            (selection != null ? " AND " + selection : ""),
+            (selection != null ? " AND ( " + selection + " )" : ""),
             where_args,                         // WHERE
             null, null,
-            (order_by != null ? order_by : "") +
-            (last_content != null ?
-             ", " + AlbumColumns.PHOTO_ID + " ASC" : ""), // ORDER BY
-            limit);                                       // LIMIT
+            (order_by != null ? order_by + ", " : "") +
+            AlbumColumns.PHOTO_ID + " ASC",     // ORDER BY
+            limit);                             // LIMIT
         try {
             if(! cur.moveToFirst()) {
                 if(last_content != null) {
-                    return getCachedContent(urls, account_name, null, order);
+                    return getCachedContent(
+                        db, urls, account_name, null, order);
                 }
                 else {
                     return null;
                 }
             }
 
-            if(limit == null) {
+            if(order == OrderType.random) {
                 cur.moveToPosition(random.nextInt(cur.getCount()));
             }
 

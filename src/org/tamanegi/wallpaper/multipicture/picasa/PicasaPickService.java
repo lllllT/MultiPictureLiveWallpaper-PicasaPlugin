@@ -8,6 +8,8 @@ import org.tamanegi.wallpaper.multipicture.plugin.PictureContentInfo;
 import org.tamanegi.wallpaper.multipicture.plugin.ScreenInfo;
 
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.preference.PreferenceManager;
@@ -17,6 +19,7 @@ import com.google.api.client.http.GenericUrl;
 public class PicasaPickService extends LazyPickService
 {
     private CachedData cached_data;
+    private ConnectivityManager conn_mgr;
 
     @Override
     public void onCreate()
@@ -24,6 +27,7 @@ public class PicasaPickService extends LazyPickService
         super.onCreate();
 
         cached_data = new CachedData(this);
+        conn_mgr = (ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);
     }
 
     @Override
@@ -101,6 +105,9 @@ public class PicasaPickService extends LazyPickService
                 // ignore
             }
 
+            if(content != null) {
+                last_content = content;
+            }
             startTask();
 
             if(content == null) {
@@ -128,14 +135,34 @@ public class PicasaPickService extends LazyPickService
             PicasaLazyPicker... pickers)
         {
             PicasaLazyPicker picker = pickers[0];
+            CachedData.ContentInfo info = null;
 
-            for(GenericUrl url : picker.urls) {
-                cached_data.updatePhotoList(url, picker.account_name, false);
+            if(isNetworkAvailable()) {
+                for(GenericUrl url : picker.urls) {
+                    cached_data.updatePhotoList(
+                        url, picker.account_name, false);
+                }
+
+                info = cached_data.getCachedContent(
+                    picker.urls, picker.account_name,
+                    picker.last_content, picker.change_order);
             }
 
-            return cached_data.getCachedContent(
-                picker.urls, picker.account_name,
-                picker.last_content, picker.change_order);
+            return info;
         }
+    }
+
+    private boolean isNetworkAvailable()
+    {
+        if(! conn_mgr.getBackgroundDataSetting()) {
+            return false;
+        }
+
+        NetworkInfo info = conn_mgr.getActiveNetworkInfo();
+        if(info == null || ! info.isConnected()) {
+            return false;
+        }
+
+        return true;
     }
 }
