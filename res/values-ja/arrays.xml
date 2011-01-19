@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- selection order -->
+  <string-array name="pref_select_order_entries">
+    <item>名前 (昇順)</item>
+    <item>名前 (降順)</item>
+    <item>日付 (古い順)</item>
+    <item>日付 (新しい順)</item>
+    <item>ランダム</item>
+  </string-array>
+</resources>

@@ -47,6 +47,7 @@ public class PicasaPickService extends LazyPickService
         private AsyncUpdateCache task;
         private CachedData.ContentInfo last_content = null;
 
+        @Override
         protected void onStart(String key, ScreenInfo hint)
         {
             pref = PreferenceManager.getDefaultSharedPreferences(
@@ -95,6 +96,7 @@ public class PicasaPickService extends LazyPickService
             startTask();
         }
 
+        @Override
         public PictureContentInfo getNext()
         {
             CachedData.ContentInfo content = null;
@@ -137,15 +139,21 @@ public class PicasaPickService extends LazyPickService
             PicasaLazyPicker picker = pickers[0];
             CachedData.ContentInfo info = null;
 
-            if(isNetworkAvailable()) {
-                for(GenericUrl url : picker.urls) {
-                    cached_data.updatePhotoList(
-                        url, picker.account_name, false);
-                }
+            try {
+                if(isNetworkAvailable()) {
+                    for(GenericUrl url : picker.urls) {
+                        cached_data.updatePhotoList(
+                            url, picker.account_name, false);
+                    }
 
-                info = cached_data.getCachedContent(
-                    picker.urls, picker.account_name,
-                    picker.last_content, picker.change_order);
+                    info = cached_data.getCachedContent(
+                        picker.urls, picker.account_name,
+                        picker.last_content, picker.change_order);
+                }
+            }
+            catch(Exception e) {
+                // ignore
+                e.printStackTrace();
             }
 
             return info;

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="app_name">Picasa for MultiPicture Live Wallpaper</string>
+  <string name="setting_title">Picasa ウェブアルバム</string>
+
+  <string name="pref_cat_album_title">アルバム選択</string>
+
+  <string name="pref_cat_selection_title">選択設定</string>
+  <string name="pref_select_order_title">画像選択順序</string>
+  <string name="pref_select_order_summary">画像変更時の選択順序。</string>
+
+  <string name="pref_featured_title">注目の写真</string>
+  <string name="pref_featured_summary">ピックアップされた注目の写真を表示。</string>
+  <string name="pref_featured_desc">Picasa ウェブアルバム : 注目の写真</string>
+
+  <string name="pref_myphotos_title">マイ フォト</string>
+  <string name="pref_myphotos_summary">マイ フォトから選択。</string>
+  <string name="pref_myphotos_desc_base">Picasa ウェブアルバム : マイ フォト / %s</string>
+
+  <string name="pref_account_title">Googleアカウント</string>
+  <string name="pref_account_add_button">アカウントを追加</string>
+
+  <string name="msg_loading">ロード中...</string>
+  <string name="msg_no_account">Googleアカウントが見付かりません。\nアカウントを追加して下さい。</string>
+  <string name="msg_fail_add_account">Googleアカウントを追加できません。</string>
+  <string name="msg_fail_get_albums">アルバムを取得できません。</string>
+  <string name="msg_no_albums">アルバムが見付かりません。</string>
+  <string name="msg_no_album_select_msg">アルバムが選択されていません。</string>
+</resources>
