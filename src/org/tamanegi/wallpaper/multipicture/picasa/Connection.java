@@ -18,6 +18,8 @@ import android.accounts.AccountManager;
 import android.accounts.AccountManagerFuture;
 import android.app.Activity;
 import android.content.Context;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager.NameNotFoundException;
 import android.os.Bundle;
 
 public class Connection
@@ -39,7 +41,7 @@ public class Connection
         transport = GoogleTransport.create();
 
         headers = (GoogleHeaders)transport.defaultHeaders;
-        headers.setApplicationName(context.getString(R.string.header_app_name));
+        headers.setApplicationName(getUserAgent());
         headers.gdataVersion = "2";
 
         AtomParser parser = new AtomParser();
@@ -157,5 +159,21 @@ public class Connection
         catch(Exception e) {
             return null;
         }
+    }
+
+    private String getUserAgent()
+    {
+        String pver = "unknown";
+        try {
+            PackageInfo pinfo = context.getPackageManager().getPackageInfo(
+                context.getPackageName(), 0);
+            pver = pinfo.versionName;
+        }
+        catch(NameNotFoundException e) {
+            e.printStackTrace();
+            // ignore
+        }
+
+        return context.getString(R.string.header_app_name, pver);
     }
 }

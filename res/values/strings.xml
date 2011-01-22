@@ -28,5 +28,5 @@
   <string name="msg_no_album_select_msg">Album is not selected.</string>
 
   <!-- DO NOT localize below -->
-  <string name="header_app_name">Picasa-MultiPictureLiveWallpaper/0.0.1</string>
+  <string name="header_app_name">Picasa-MultiPictureLiveWallpaper/%s</string>
 </resources>
