@@ -17,9 +17,11 @@ import com.google.api.client.http.HttpResponse;
 
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.database.sqlite.SQLiteDatabase.CursorFactory;
 import android.os.Environment;
 import android.provider.BaseColumns;
 
@@ -48,7 +50,7 @@ public class CachedData
     {
         this.context = context;
         connection = new Connection(context);
-        helper = new DataHelper(context);
+        helper = new DataHelper(new DatabaseContext(context));
         random = new Random();
     }
 
@@ -602,6 +604,38 @@ public class CachedData
             db.execSQL("DROP TABLE IF EXISTS " + CacheInfoColumns.TABLE_NAME);
             db.execSQL("DROP TABLE IF EXISTS " + AlbumColumns.TABLE_NAME);
             onCreate(db);
+        }
+    }
+
+    private static class DatabaseContext extends ContextWrapper
+    {
+        private DatabaseContext(Context context)
+        {
+            super(context);
+        }
+
+        @Override
+        public SQLiteDatabase openOrCreateDatabase(
+            String name, int mode, CursorFactory factory)
+        {
+            return super.openOrCreateDatabase(
+                getDatabasePathString(name), mode, factory);
+        }
+
+        public boolean deleteDatabase(String name)
+        {
+            return super.deleteDatabase(getDatabasePathString(name));
+        }
+
+        @Override
+        public File getDatabasePath(String name)
+        {
+            return new File(getCacheDir(), name);
+        }
+
+        private String getDatabasePathString(String name)
+        {
+            return getDatabasePath(name).getAbsolutePath();
         }
     }
 }
