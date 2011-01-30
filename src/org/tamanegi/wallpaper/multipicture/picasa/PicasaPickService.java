@@ -44,7 +44,7 @@ public class PicasaPickService extends LazyPickService
         private OrderType change_order;
         private PicasaUrl[] urls;
 
-        private AsyncUpdateCache task;
+        private AsyncUpdateCache task = null;
         private CachedData.ContentInfo last_content = null;
 
         @Override
@@ -94,6 +94,14 @@ public class PicasaPickService extends LazyPickService
 
             // get album feed
             startTask();
+        }
+
+        @Override
+        protected void onStop()
+        {
+            if(task != null) {
+                task.cancel(false);
+            }
         }
 
         @Override
