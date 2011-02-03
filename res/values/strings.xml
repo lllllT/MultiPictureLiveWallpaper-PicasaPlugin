@@ -27,6 +27,11 @@
   <string name="msg_no_albums">Album is not found.</string>
   <string name="msg_no_album_select_msg">Album is not selected.</string>
 
+  <string name="msg_usage">Choose from picture source option of \'MultiPicture Live Wallpaper\' to use.</string>
+  <string name="msg_no_rel_package">Need \'MultiPicture Live Wallpaper\' to use.</string>
+  <string name="market_not_found">Market application is not found.</string>
+
   <!-- DO NOT localize below -->
   <string name="header_app_name">Picasa-MultiPictureLiveWallpaper/%s</string>
+  <string name="lwp_search_uri">market://search?q=pname:org.tamanegi.wallpaper.multipicture</string>
 </resources>

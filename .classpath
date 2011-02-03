@@ -3,7 +3,6 @@
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="src" path="gen"/>
 	<classpathentry kind="con" path="com.android.ide.eclipse.adt.ANDROID_FRAMEWORK"/>
-	<classpathentry kind="lib" path="libs/mplwp-plugin-0.0.1.jar"/>
 	<classpathentry kind="lib" path="libs/google-api-client-googleapis-1.2.2-alpha.jar"/>
 	<classpathentry kind="lib" path="libs/google-api-client-googleapis-xml-atom-1.2.2-alpha.jar"/>
 	<classpathentry kind="lib" path="libs/google-api-client-apache-1.2.2-alpha.jar"/>
@@ -13,5 +12,6 @@
 	<classpathentry kind="lib" path="libs/google-api-client-util-1.2.2-alpha.jar"/>
 	<classpathentry kind="lib" path="libs/google-api-client-xml-1.2.2-alpha.jar"/>
 	<classpathentry kind="lib" path="libs/google-api-client-xml-atom-1.2.2-alpha.jar"/>
+	<classpathentry kind="lib" path="libs/mplwp-plugin-0.0.2.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

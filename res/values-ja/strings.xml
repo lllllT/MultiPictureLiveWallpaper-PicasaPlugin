@@ -26,4 +26,8 @@
   <string name="msg_fail_get_albums">アルバムを取得できません。</string>
   <string name="msg_no_albums">アルバムが見付かりません。</string>
   <string name="msg_no_album_select_msg">アルバムが選択されていません。</string>
+
+  <string name="msg_usage">使用するには \'MultiPicture Live Wallpaper\' の画像ソースオプションから選択して下さい。</string>
+  <string name="msg_no_rel_package">使用するには \'MultiPicture Live Wallpaper\' が必要です。</string>
+  <string name="market_not_found">マーケットアプリケーションが見付からないようです。</string>
 </resources>

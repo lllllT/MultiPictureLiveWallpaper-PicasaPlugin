@@ -17,6 +17,15 @@
   <application android:icon="@drawable/icon"
                android:label="@string/app_name">
 
+    <activity android:name=".LaunchActivity"
+              android:theme="@android:style/Theme.NoDisplay"
+              android:excludeFromRecents="true">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.INFO" />
+      </intent-filter>
+    </activity>
+
     <activity android:name=".ModeSelector"
               android:label="@string/setting_title">
       <intent-filter>
