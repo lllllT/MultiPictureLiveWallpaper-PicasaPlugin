@@ -1,6 +1,8 @@
 package org.tamanegi.wallpaper.multipicture.picasa;
 
 import java.io.File;
+import java.util.LinkedList;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.tamanegi.wallpaper.multipicture.picasa.content.PicasaUrl;
 import org.tamanegi.wallpaper.multipicture.plugin.LazyPickService;
@@ -11,23 +13,48 @@ import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
-import android.os.AsyncTask;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.Message;
+import android.os.Process;
 import android.preference.PreferenceManager;
-
-import com.google.api.client.http.GenericUrl;
 
 public class PicasaPickService extends LazyPickService
 {
-    private CachedData cached_data;
+    private static final int LAST_URI_CNT_FACTOR = 2;
+
+    private static final int MSG_LOAD = 2;
+
     private ConnectivityManager conn_mgr;
+
+    private AtomicInteger picker_cnt;
+    private LinkedList<String> last_urls;
+    private HandlerThread worker_thread;
+    private Handler handler;
 
     @Override
     public void onCreate()
     {
         super.onCreate();
 
-        cached_data = new CachedData(this);
         conn_mgr = (ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);
+
+        picker_cnt = new AtomicInteger(0);
+        last_urls = new LinkedList<String>();
+
+        worker_thread = new HandlerThread(
+            "PicasaPickService.worker",
+            Process.THREAD_PRIORITY_BACKGROUND);
+        worker_thread.start();
+        handler = new Handler(worker_thread.getLooper(), new WorkerCallback());
+    }
+
+    @Override
+    public void onDestroy()
+    {
+        super.onDestroy();
+
+        worker_thread.quit();
     }
 
     @Override
@@ -36,26 +63,61 @@ public class PicasaPickService extends LazyPickService
         return new PicasaLazyPicker();
     }
 
+    private class WorkerCallback implements Handler.Callback
+    {
+        @Override
+        public boolean handleMessage(Message msg)
+        {
+            switch(msg.what) {
+              case MSG_LOAD:
+                  {
+                      PicasaLazyPicker picker = (PicasaLazyPicker)msg.obj;
+                      int pre_loading_cnt;
+                      synchronized(picker) {
+                          pre_loading_cnt = picker.loading_cnt;
+                      }
+
+                      picker.onLoad();
+
+                      synchronized(picker) {
+                          picker.loading_cnt -= pre_loading_cnt;
+                          picker.notifyAll();
+                      }
+                  }
+                  break;
+
+              default:
+                  return false;
+            }
+
+            return true;
+        }
+    }
+
     private class PicasaLazyPicker extends LazyPicker
     {
         private SharedPreferences pref;
+        private CachedData cached_data;
 
-        private String account_name;
-        private OrderType change_order;
-        private PicasaUrl[] urls;
-
-        private AsyncUpdateCache task = null;
-        private CachedData.ContentInfo last_content = null;
+        private CachedData.ContentInfo next_content = null;
+        private int loading_cnt = 0;
 
         @Override
         protected void onStart(String key, ScreenInfo hint)
         {
+            picker_cnt.incrementAndGet();
+
+            // preference
             pref = PreferenceManager.getDefaultSharedPreferences(
                 PicasaPickService.this);
 
             String mode_key = String.format(Settings.MODE_KEY, key);
             String mode_val =
                 pref.getString(mode_key, Settings.MODE_FEATURED_VAL);
+
+            String account_name;
+            OrderType change_order;
+            PicasaUrl[] urls;
 
             if(Settings.MODE_ALBUM_VAL.equals(mode_val)) {
                 // album mode
@@ -92,33 +154,38 @@ public class PicasaPickService extends LazyPickService
                 urls = new PicasaUrl[] { PicasaUrl.featuredPhotosUrl() };
             }
 
+            cached_data = new CachedData(PicasaPickService.this,
+                                         urls, account_name, change_order);
+
             // get album feed
-            startTask();
+            startLoading();
         }
 
         @Override
-        protected void onStop()
+        public void onStop()
         {
-            if(task != null) {
-                task.cancel(false);
-            }
+            picker_cnt.decrementAndGet();
         }
 
         @Override
         public PictureContentInfo getNext()
         {
             CachedData.ContentInfo content = null;
-            try {
-                content = task.get();
-            }
-            catch(Exception e) {
-                // ignore
+            synchronized(this) {
+                while(loading_cnt > 0) {
+                    try {
+                        wait();
+                    }
+                    catch(InterruptedException e) {
+                        // ignore
+                    }
+                }
+
+                content = next_content;
+                next_content = null;
             }
 
-            if(content != null) {
-                last_content = content;
-            }
-            startTask();
+            startLoading();
 
             if(content == null) {
                 return null;
@@ -130,33 +197,26 @@ public class PicasaPickService extends LazyPickService
             return info;
         }
 
-        private void startTask()
+        private void startLoading()
         {
-            task = new AsyncUpdateCache();
-            task.execute(this);
+            synchronized(this) {
+                loading_cnt += 1;
+                handler.obtainMessage(MSG_LOAD, this).sendToTarget();
+            }
         }
-    }
 
-    private class AsyncUpdateCache
-        extends AsyncTask<PicasaLazyPicker, Void, CachedData.ContentInfo>
-    {
-        @Override
-        protected CachedData.ContentInfo doInBackground(
-            PicasaLazyPicker... pickers)
+        private void onLoad()
         {
-            PicasaLazyPicker picker = pickers[0];
             CachedData.ContentInfo info = null;
 
             try {
                 if(isNetworkAvailable()) {
-                    for(GenericUrl url : picker.urls) {
-                        cached_data.updatePhotoList(
-                            url, picker.account_name, false);
-                    }
+                    cached_data.updatePhotoList(false);
+                    info = cached_data.getCachedContent(last_urls);
+                }
 
-                    info = cached_data.getCachedContent(
-                        picker.urls, picker.account_name,
-                        picker.last_content, picker.change_order);
+                if(info == null) {
+                    // todo: get from cache
                 }
             }
             catch(Exception e) {
@@ -164,7 +224,11 @@ public class PicasaPickService extends LazyPickService
                 e.printStackTrace();
             }
 
-            return info;
+            if(info != null) {
+                addLastUrl(info.url);
+            }
+
+            next_content = info;
         }
     }
 
@@ -180,5 +244,18 @@ public class PicasaPickService extends LazyPickService
         }
 
         return true;
+    }
+
+    private void addLastUrl(String url)
+    {
+        last_urls.addLast(url);
+        adjustLastUrl();
+    }
+
+    private void adjustLastUrl()
+    {
+        while(last_urls.size() > picker_cnt.get() * LAST_URI_CNT_FACTOR) {
+            last_urls.removeFirst();
+        }
     }
 }

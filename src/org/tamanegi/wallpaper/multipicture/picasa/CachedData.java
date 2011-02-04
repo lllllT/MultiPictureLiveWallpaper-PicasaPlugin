@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.security.MessageDigest;
+import java.util.List;
 import java.util.Random;
 
 import org.tamanegi.wallpaper.multipicture.picasa.content.Entry;
@@ -41,82 +42,94 @@ public class CachedData
     private static final int MAX_CACHED_CONTENT = 50;
     private static final int BUFFER_SIZE = 1024 * 8;
 
+    private static Object lock = new Object();
+
     private Context context;
+    private GenericUrl[] urls;
+    private String account_name;
+    private OrderType order;
+    private ContentInfo last_content;
+    private int[] idx_list = null;
+    private int cur_info_idx = -1;
+
     private Connection connection;
     private DataHelper helper;
-    private Random random;
 
-    public CachedData(Context context)
+    public CachedData(Context context,
+                      GenericUrl[] urls, String account_name, OrderType order)
     {
         this.context = context;
+        this.urls = urls;
+        this.account_name = account_name;
+        this.order = order;
+
         connection = new Connection(context);
         helper = new DataHelper(new DatabaseContext(context));
-        random = new Random();
     }
 
-    public synchronized void updatePhotoList(
-        GenericUrl url, String account_name, boolean follow_next)
+    public void updatePhotoList(boolean follow_next)
     {
-        String location = url.build();
-        SQLiteDatabase db = helper.getWritableDatabase();
+        synchronized(lock) {
+            SQLiteDatabase db = helper.getWritableDatabase();
 
-        db.beginTransaction();
-        try {
-            long last_update =
-                getCacheLastUpdate(db, location, account_name, "");
-            long cur_time = System.currentTimeMillis();
-            if(last_update >= 0 &&
-               cur_time >= last_update &&
-               cur_time - last_update < FEATURED_CACHE_LIFETIME) {
-                return;
+            db.beginTransaction();
+            try {
+                for(GenericUrl url: urls) {
+                    String location = url.build();
+
+                    long last_update = getCacheLastUpdate(db, location, "");
+                    long cur_time = System.currentTimeMillis();
+                    if(last_update >= 0 &&
+                       cur_time >= last_update &&
+                       cur_time - last_update < FEATURED_CACHE_LIFETIME) {
+                        return;
+                    }
+
+                    Feed feed = connection.executeGetFeed(
+                        url, account_name, follow_next);
+                    if(feed != null && feed.entries != null) {
+                        updatePhotoList(db, location, feed);
+                    }
+                }
+
+                db.setTransactionSuccessful();
             }
-
-            Feed feed =
-                connection.executeGetFeed(url, account_name, follow_next);
-            if(feed != null && feed.entries != null) {
-                updatePhotoList(db, location, account_name, feed);
+            finally {
+                db.endTransaction();
+                db.close();
             }
-
-            db.setTransactionSuccessful();
-        }
-        finally {
-            db.endTransaction();
-            db.close();
         }
     }
 
-    public synchronized ContentInfo getCachedContent(
-        GenericUrl[] urls, String account_name,
-        ContentInfo last_content, OrderType order)
+    public ContentInfo getCachedContent(List<String> last_urls)
     {
-        SQLiteDatabase db = helper.getWritableDatabase();
+        synchronized(lock) {
+            SQLiteDatabase db = helper.getWritableDatabase();
 
-        db.beginTransaction();
-        try {
-            ContentInfo info =
-                getCachedContent(db, urls, account_name, last_content, order);
-            if(info == null) {
-                return null;
+            db.beginTransaction();
+            try {
+                ContentInfo info = getCachedContent(db, true, last_urls);
+                if(info == null) {
+                    return null;
+                }
+
+                info.path = updateCachedContent(db, info.url, info.timestamp);
+                if(info.path == null) {
+                    return null;
+                }
+
+                db.setTransactionSuccessful();
+                return info;
             }
-
-            info.path = updateCachedContent(
-                db, info.url, account_name, info.timestamp);
-            if(info.path == null) {
-                return null;
+            finally {
+                db.endTransaction();
+                db.close();
             }
-
-            db.setTransactionSuccessful();
-            return info;
-        }
-        finally {
-            db.endTransaction();
-            db.close();
         }
     }
 
     private long getCacheLastUpdate(SQLiteDatabase db,
-                                    String location, String account_name,
-                                    String timestamp)
+                                    String location, String timestamp)
     {
         Cursor cur = db.query(
             CacheInfoColumns.TABLE_NAME,
@@ -140,8 +153,7 @@ public class CachedData
     }
 
     private long updateCacheLastUpdate(SQLiteDatabase db, String type,
-                                       String location, String account_name,
-                                       String timestamp)
+                                       String location, String timestamp)
     {
         db.delete(CacheInfoColumns.TABLE_NAME,
                   CacheInfoColumns.LOCATION + " = ? AND " +
@@ -161,8 +173,7 @@ public class CachedData
         return db.insert(CacheInfoColumns.TABLE_NAME, "", vals);
     }
 
-    private void updateCacheLastAccess(SQLiteDatabase db,
-                                       String location, String account_name)
+    private void updateCacheLastAccess(SQLiteDatabase db, String location)
     {
         long cur_time = System.currentTimeMillis();
 
@@ -175,9 +186,7 @@ public class CachedData
                   new String[] { location, account_name });
     }
 
-    private void updatePhotoList(SQLiteDatabase db,
-                                 String location, String account_name,
-                                 Feed feed)
+    private void updatePhotoList(SQLiteDatabase db, String location, Feed feed)
     {
         db.delete(AlbumColumns.TABLE_NAME,
                   AlbumColumns.LOCATION + " = ? AND " +
@@ -198,14 +207,14 @@ public class CachedData
         }
 
         updateCacheLastUpdate(db, CacheInfoColumns.CACHE_TYPE_LIST,
-                              location, account_name, "");
+                              location, "");
     }
 
-    private ContentInfo getCachedContent(
-        SQLiteDatabase db,
-        GenericUrl[] urls, String account_name,
-        ContentInfo last_content, OrderType order)
+    private ContentInfo getCachedContent(SQLiteDatabase db, boolean use_last,
+                                         List<String> last_urls)
     {
+        use_last = (use_last && last_content != null);
+
         String[] locations = new String[urls.length];
         for(int i = 0; i < urls.length; i++) {
             locations[i] = urls[i].build();
@@ -217,7 +226,7 @@ public class CachedData
         String limit = "1";
 
         if(order == OrderType.name_asc) {
-            if(last_content != null) {
+            if(use_last) {
                 selection =
                     AlbumColumns.CONTENT_NAME + " > ? OR " +
                     "( " +
@@ -229,7 +238,7 @@ public class CachedData
             order_by = AlbumColumns.CONTENT_NAME + " ASC";
         }
         else if(order == OrderType.name_desc) {
-            if(last_content != null) {
+            if(use_last) {
                 selection =
                     AlbumColumns.CONTENT_NAME + " < ? OR " +
                     "( " +
@@ -241,7 +250,7 @@ public class CachedData
             order_by = AlbumColumns.CONTENT_NAME + " DESC";
         }
         else if(order == OrderType.date_asc) {
-            if(last_content != null) {
+            if(use_last) {
                 selection =
                     AlbumColumns.TIMESTAMP + " > ? OR " +
                     "( " +
@@ -253,7 +262,7 @@ public class CachedData
             order_by = AlbumColumns.TIMESTAMP + " ASC";
         }
         else if(order == OrderType.date_desc) {
-            if(last_content != null) {
+            if(use_last) {
                 selection =
                     AlbumColumns.TIMESTAMP + " < ? OR " +
                     "( " +
@@ -265,7 +274,7 @@ public class CachedData
             order_by = AlbumColumns.TIMESTAMP + " DESC";
         }
         else {
-            last_content = null;
+            use_last = false;
             limit = null;
         }
 
@@ -300,28 +309,71 @@ public class CachedData
             AlbumColumns.PHOTO_ID + " ASC",     // ORDER BY
             limit);                             // LIMIT
         try {
-            if(! cur.moveToFirst()) {
-                if(last_content != null) {
-                    return getCachedContent(
-                        db, urls, account_name, null, order);
+            if(cur.getCount() < 1) {
+                if(use_last) {
+                    return getCachedContent(db, false, last_urls);
                 }
                 else {
                     return null;
                 }
             }
 
-            if(order == OrderType.random) {
-                cur.moveToPosition(random.nextInt(cur.getCount()));
+            // prepare index list
+            if(idx_list == null || idx_list.length != cur.getCount()) {
+                if(order == OrderType.random) {
+                    int cnt = cur.getCount();
+                    idx_list = new int[cnt];
+
+                    for(int i = 0; i < cnt; i++) {
+                        idx_list[i] = i;
+                    }
+
+                    cur_info_idx = -1;
+                }
+                else {
+                    idx_list = new int[] { 0 };
+                }
             }
 
-            ContentInfo info = new ContentInfo();
-            info.photo_id = cur.getString(AlbumColumns.COL_IDX_PHOTO_ID);
-            info.url = cur.getString(AlbumColumns.COL_IDX_CONTENT_URL);
-            info.name = cur.getString(AlbumColumns.COL_IDX_CONTENT_NAME);
-            info.timestamp = cur.getString(AlbumColumns.COL_IDX_TIMESTAMP);
-            info.rotation = cur.getInt(AlbumColumns.COL_IDX_ROTATION);
+            // get next
+            int retry_saved_idx = -1;
+            ContentInfo retry_saved_info = null;
 
-            return info;
+            int cnt = idx_list.length;
+            for(int i = 0; i < cnt; i++) {
+                int next_idx = (cur_info_idx + i + 1) % cnt;
+                if(order == OrderType.random && next_idx == 0) {
+                    shuffleIndexes();
+                }
+
+                cur.moveToPosition(idx_list[next_idx]);
+                ContentInfo info = new ContentInfo();
+                info.photo_id = cur.getString(AlbumColumns.COL_IDX_PHOTO_ID);
+                info.url = cur.getString(AlbumColumns.COL_IDX_CONTENT_URL);
+                info.name = cur.getString(AlbumColumns.COL_IDX_CONTENT_NAME);
+                info.timestamp = cur.getString(AlbumColumns.COL_IDX_TIMESTAMP);
+                info.rotation = cur.getInt(AlbumColumns.COL_IDX_ROTATION);
+
+                if(order == OrderType.random && last_urls.contains(info.url)) {
+                    if(i == 0) {
+                        retry_saved_info = info;
+                        retry_saved_idx = next_idx;
+                    }
+                    continue;
+                }
+
+                cur_info_idx = next_idx;
+                last_content = info;
+                return info;
+            }
+
+            if(retry_saved_info != null) {
+                cur_info_idx = retry_saved_idx;
+                last_content = retry_saved_info;
+                return retry_saved_info;
+            }
+
+            return null;
         }
         finally {
             cur.close();
@@ -329,8 +381,7 @@ public class CachedData
     }
 
     private String updateCachedContent(SQLiteDatabase db,
-                                       String url, String account_name,
-                                       String timestamp)
+                                       String url, String timestamp)
     {
         // get cached file if exists
         Cursor cur = db.query(
@@ -346,7 +397,7 @@ public class CachedData
                 String id = cur.getString(CacheInfoColumns.COL_IDX_ID);
                 File file = getCacheFile(id, url);
                 if(file != null && file.isFile()) {
-                    updateCacheLastAccess(db, url, account_name);
+                    updateCacheLastAccess(db, url);
                     return file.getAbsolutePath();
                 }
             }
@@ -360,7 +411,7 @@ public class CachedData
 
         // regist id for file name
         long id = updateCacheLastUpdate(db, CacheInfoColumns.CACHE_TYPE_CONTENT,
-                                        url, account_name, timestamp);
+                                        url, timestamp);
         if(id < 0) {
             return null;
         }
@@ -513,6 +564,18 @@ public class CachedData
         }
         catch(Exception e) {
             return null;
+        }
+    }
+
+    private void shuffleIndexes()
+    {
+        Random random = new Random();
+
+        for(int i = 0; i < idx_list.length; i++) {
+            int idx = i + random.nextInt(idx_list.length - i);
+            int v = idx_list[i];
+            idx_list[i] = idx_list[idx];
+            idx_list[idx] = v;
         }
     }
 
