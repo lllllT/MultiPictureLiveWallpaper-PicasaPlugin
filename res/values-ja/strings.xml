@@ -29,7 +29,7 @@
 
   <string name="msg_no_search_word">キーワードが入力されていません。</string>
 
-  <string name="msg_loading">ロード中...</string>
+  <string name="msg_loading">読み込み中...</string>
   <string name="msg_no_account">Googleアカウントが見付かりません。\nアカウントを追加して下さい。</string>
   <string name="msg_fail_add_account">Googleアカウントを追加できません。</string>
   <string name="msg_fail_get_albums">アルバムを取得できません。</string>
