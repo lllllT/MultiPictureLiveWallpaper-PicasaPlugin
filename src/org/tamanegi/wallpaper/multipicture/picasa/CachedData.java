@@ -572,7 +572,7 @@ public class CachedData
             return new Integer(val);
         }
         catch(Exception e) {
-            return null;
+            return Integer.valueOf(0);
         }
     }
 
@@ -582,7 +582,7 @@ public class CachedData
             return new Long(val);
         }
         catch(Exception e) {
-            return null;
+            return Long.valueOf(0);
         }
     }
 
