@@ -101,19 +101,22 @@ public class CachedData
         }
     }
 
-    public ContentInfo getCachedContent(List<String> last_urls)
+    public ContentInfo getCachedContent(boolean only_cached,
+                                        List<String> last_urls)
     {
         synchronized(lock) {
             SQLiteDatabase db = helper.getWritableDatabase();
 
             db.beginTransaction();
             try {
-                ContentInfo info = getCachedContent(db, true, last_urls);
+                ContentInfo info =
+                    getCachedContent(db, only_cached, true, last_urls);
                 if(info == null) {
                     return null;
                 }
 
-                info.path = updateCachedContent(db, info.url, info.timestamp);
+                info.path = updateCachedContent(
+                    db, info.url, info.timestamp, only_cached);
                 if(info.path == null) {
                     return null;
                 }
@@ -210,7 +213,8 @@ public class CachedData
                               location, "");
     }
 
-    private ContentInfo getCachedContent(SQLiteDatabase db, boolean use_last,
+    private ContentInfo getCachedContent(SQLiteDatabase db,
+                                         boolean only_cached, boolean use_last,
                                          List<String> last_urls)
     {
         use_last = (use_last && last_content != null);
@@ -228,50 +232,50 @@ public class CachedData
         if(order == OrderType.name_asc) {
             if(use_last) {
                 selection =
-                    AlbumColumns.CONTENT_NAME + " > ? OR " +
+                    CacheAlbumColumns.CONTENT_NAME + " > ? OR " +
                     "( " +
-                    AlbumColumns.CONTENT_NAME + " = ? AND " +
-                    AlbumColumns.PHOTO_ID + " > ?" +
+                    CacheAlbumColumns.CONTENT_NAME + " = ? AND " +
+                    CacheAlbumColumns.PHOTO_ID + " > ?" +
                     " )";
                 selection_arg = last_content.name;
             }
-            order_by = AlbumColumns.CONTENT_NAME + " ASC";
+            order_by = CacheAlbumColumns.CONTENT_NAME + " ASC";
         }
         else if(order == OrderType.name_desc) {
             if(use_last) {
                 selection =
-                    AlbumColumns.CONTENT_NAME + " < ? OR " +
+                    CacheAlbumColumns.CONTENT_NAME + " < ? OR " +
                     "( " +
-                    AlbumColumns.CONTENT_NAME + " = ? AND " +
-                    AlbumColumns.PHOTO_ID + " > ?" +
+                    CacheAlbumColumns.CONTENT_NAME + " = ? AND " +
+                    CacheAlbumColumns.PHOTO_ID + " > ?" +
                     " )";
                 selection_arg = last_content.name;
             }
-            order_by = AlbumColumns.CONTENT_NAME + " DESC";
+            order_by = CacheAlbumColumns.CONTENT_NAME + " DESC";
         }
         else if(order == OrderType.date_asc) {
             if(use_last) {
                 selection =
-                    AlbumColumns.TIMESTAMP + " > ? OR " +
+                    CacheAlbumColumns.TIMESTAMP + " > ? OR " +
                     "( " +
-                    AlbumColumns.TIMESTAMP + " = ? AND " +
-                    AlbumColumns.PHOTO_ID + " > ?" +
+                    CacheAlbumColumns.TIMESTAMP + " = ? AND " +
+                    CacheAlbumColumns.PHOTO_ID + " > ?" +
                     " )";
                 selection_arg = last_content.timestamp;
             }
-            order_by = AlbumColumns.TIMESTAMP + " ASC";
+            order_by = CacheAlbumColumns.TIMESTAMP + " ASC";
         }
         else if(order == OrderType.date_desc) {
             if(use_last) {
                 selection =
-                    AlbumColumns.TIMESTAMP + " < ? OR " +
+                    CacheAlbumColumns.TIMESTAMP + " < ? OR " +
                     "( " +
-                    AlbumColumns.TIMESTAMP + " = ? AND " +
-                    AlbumColumns.PHOTO_ID + " > ?" +
+                    CacheAlbumColumns.TIMESTAMP + " = ? AND " +
+                    CacheAlbumColumns.PHOTO_ID + " > ?" +
                     " )";
                 selection_arg = last_content.timestamp;
             }
-            order_by = AlbumColumns.TIMESTAMP + " DESC";
+            order_by = CacheAlbumColumns.TIMESTAMP + " DESC";
         }
         else {
             use_last = false;
@@ -284,7 +288,7 @@ public class CachedData
         for(int i = 0; i < locations.length; i++) {
             location_where
                 .append(i == 0 ? "( " : " OR ")
-                .append(AlbumColumns.LOCATION)
+                .append(CacheAlbumColumns.LOCATION)
                 .append(" = ?");
             where_args[i] = locations[i];
         }
@@ -298,20 +302,26 @@ public class CachedData
         }
 
         Cursor cur = db.query(
-            AlbumColumns.TABLE_NAME,
-            AlbumColumns.ALL_COLUMNS,
-            location_where + " AND " +
-            AlbumColumns.ACCOUNT_NAME + " = ?" +
+            CacheAlbumColumns.TABLE_NAME,
+            CacheAlbumColumns.ALL_COLUMNS,
+            location_where +
+            " AND " +
+            CacheAlbumColumns.ACCOUNT_NAME + " = ?" +
+            (only_cached ?
+             " AND " +
+             CacheAlbumColumns.RIGHT_TABLE_NAME + "." +
+             AlbumColumns.LOCATION + " IS NOT NULL" :
+             "") +
             (selection != null ? " AND ( " + selection + " )" : ""),
             where_args,                         // WHERE
             null, null,
             (order_by != null ? order_by + ", " : "") +
-            AlbumColumns.PHOTO_ID + " ASC",     // ORDER BY
+            CacheAlbumColumns.PHOTO_ID + " ASC", // ORDER BY
             limit);                             // LIMIT
         try {
             if(cur.getCount() < 1) {
                 if(use_last) {
-                    return getCachedContent(db, false, last_urls);
+                    return getCachedContent(db, only_cached, false, last_urls);
                 }
                 else {
                     return null;
@@ -348,11 +358,16 @@ public class CachedData
 
                 cur.moveToPosition(idx_list[next_idx]);
                 ContentInfo info = new ContentInfo();
-                info.photo_id = cur.getString(AlbumColumns.COL_IDX_PHOTO_ID);
-                info.url = cur.getString(AlbumColumns.COL_IDX_CONTENT_URL);
-                info.name = cur.getString(AlbumColumns.COL_IDX_CONTENT_NAME);
-                info.timestamp = cur.getString(AlbumColumns.COL_IDX_TIMESTAMP);
-                info.rotation = cur.getInt(AlbumColumns.COL_IDX_ROTATION);
+                info.photo_id =
+                    cur.getString(CacheAlbumColumns.COL_IDX_PHOTO_ID);
+                info.url =
+                    cur.getString(CacheAlbumColumns.COL_IDX_CONTENT_URL);
+                info.name =
+                    cur.getString(CacheAlbumColumns.COL_IDX_CONTENT_NAME);
+                info.timestamp =
+                    cur.getString(CacheAlbumColumns.COL_IDX_TIMESTAMP);
+                info.rotation =
+                    cur.getInt(CacheAlbumColumns.COL_IDX_ROTATION);
 
                 if(order == OrderType.random && last_urls.contains(info.url)) {
                     if(i == 0) {
@@ -381,7 +396,8 @@ public class CachedData
     }
 
     private String updateCachedContent(SQLiteDatabase db,
-                                       String url, String timestamp)
+                                       String url, String timestamp,
+                                       boolean only_cached)
     {
         // get cached file if exists
         Cursor cur = db.query(
@@ -404,6 +420,9 @@ public class CachedData
         }
         finally {
             cur.close();
+        }
+        if(only_cached) {
+            return null;
         }
 
         // delete old files
@@ -612,6 +631,44 @@ public class CachedData
         public static final String CONTENT_NAME = "content_name";
         public static final String TIMESTAMP = "timestamp";
         public static final String ROTATION = "rotation";
+    }
+
+    private static interface CacheAlbumColumns extends AlbumColumns
+    {
+        public static final String LEFT_TABLE_NAME =
+            AlbumColumns.TABLE_NAME;
+        public static final String RIGHT_TABLE_NAME =
+            CacheInfoColumns.TABLE_NAME;
+
+        public static final String TABLE_NAME =
+            LEFT_TABLE_NAME + " LEFT OUTER JOIN " +
+            RIGHT_TABLE_NAME +
+            " ON " +
+            LEFT_TABLE_NAME + "." + AlbumColumns.CONTENT_URL + " = " +
+            RIGHT_TABLE_NAME + "." + CacheInfoColumns.LOCATION +
+            " AND " +
+            LEFT_TABLE_NAME + "." + AlbumColumns.ACCOUNT_NAME + " = " +
+            RIGHT_TABLE_NAME + "." + CacheInfoColumns.ACCOUNT_NAME +
+            " AND " +
+            LEFT_TABLE_NAME + "." + AlbumColumns.TIMESTAMP + " = " +
+            RIGHT_TABLE_NAME + "." + CacheInfoColumns.TIMESTAMP;
+
+        public static final String _ID =
+            LEFT_TABLE_NAME + "." + AlbumColumns._ID;
+        public static final String LOCATION =
+            LEFT_TABLE_NAME + "." + AlbumColumns.LOCATION;
+        public static final String ACCOUNT_NAME =
+            LEFT_TABLE_NAME + "." + AlbumColumns.ACCOUNT_NAME;
+        public static final String PHOTO_ID =
+            LEFT_TABLE_NAME + "." + AlbumColumns.PHOTO_ID;
+        public static final String CONTENT_URL =
+            LEFT_TABLE_NAME + "." + AlbumColumns.CONTENT_URL;
+        public static final String CONTENT_NAME =
+            LEFT_TABLE_NAME + "." + AlbumColumns.CONTENT_NAME;
+        public static final String TIMESTAMP =
+            LEFT_TABLE_NAME + "." + AlbumColumns.TIMESTAMP;
+        public static final String ROTATION =
+            LEFT_TABLE_NAME + "." + AlbumColumns.ROTATION;
 
         public static final String[] ALL_COLUMNS = {
             _ID, LOCATION, ACCOUNT_NAME, PHOTO_ID,

@@ -98,6 +98,7 @@ public class PicasaPickService extends LazyPickService
     {
         private SharedPreferences pref;
         private CachedData cached_data;
+        private OrderType change_order;
 
         private CachedData.ContentInfo next_content = null;
         private int loading_cnt = 0;
@@ -116,7 +117,6 @@ public class PicasaPickService extends LazyPickService
                 pref.getString(mode_key, Settings.MODE_FEATURED_VAL);
 
             String account_name;
-            OrderType change_order;
             PicasaUrl[] urls;
 
             if(Settings.MODE_ALBUM_VAL.equals(mode_val)) {
@@ -212,11 +212,11 @@ public class PicasaPickService extends LazyPickService
             try {
                 if(isNetworkAvailable()) {
                     cached_data.updatePhotoList(false);
-                    info = cached_data.getCachedContent(last_urls);
+                    info = cached_data.getCachedContent(false, last_urls);
                 }
 
-                if(info == null) {
-                    // todo: get from cache
+                if(info == null && change_order == OrderType.random) {
+                    info = cached_data.getCachedContent(true, last_urls);
                 }
             }
             catch(Exception e) {
