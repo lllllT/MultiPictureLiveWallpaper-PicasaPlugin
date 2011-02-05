@@ -147,6 +147,17 @@ public class PicasaPickService extends LazyPickService
                     change_order = OrderType.random;
                 }
             }
+            else if(Settings.MODE_SEARCH_COMMUNITY_VAL.equals(mode_val)) {
+                // community search
+                String word_key = String.format(Settings.SEARCH_WORD_KEY, key);
+                String word_val = pref.getString(word_key, "");
+
+                account_name = "";
+                change_order = OrderType.random;
+                urls = new PicasaUrl[] {
+                    PicasaUrl.communitySearchUrl(word_val)
+                };
+            }
             else {
                 // featured mode
                 account_name = "";

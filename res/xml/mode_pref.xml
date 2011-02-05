@@ -2,6 +2,13 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
   <CheckBoxPreference
+     android:key="myphotos"
+     android:persistent="false"
+     android:title="@string/pref_myphotos_title"
+     android:summary="@string/pref_myphotos_summary"
+     android:widgetLayout="@layout/preference_widget_radiobutton"
+     />
+  <CheckBoxPreference
      android:key="featured"
      android:persistent="false"
      android:title="@string/pref_featured_title"
@@ -9,10 +16,10 @@
      android:widgetLayout="@layout/preference_widget_radiobutton"
      />
   <CheckBoxPreference
-     android:key="myphotos"
+     android:key="search.community"
      android:persistent="false"
-     android:title="@string/pref_myphotos_title"
-     android:summary="@string/pref_myphotos_summary"
+     android:title="@string/pref_search_community_title"
+     android:summary="@string/pref_search_community_summary"
      android:widgetLayout="@layout/preference_widget_radiobutton"
      />
 
