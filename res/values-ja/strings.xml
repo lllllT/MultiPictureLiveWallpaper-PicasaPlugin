@@ -25,6 +25,7 @@
   <string name="pref_account_add_button">アカウントを追加</string>
 
   <string name="dlg_search_title">検索</string>
+  <string name="btn_view_on_web">Webで見る</string>
 
   <string name="msg_no_search_word">キーワードが入力されていません。</string>
 

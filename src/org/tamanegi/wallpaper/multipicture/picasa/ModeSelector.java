@@ -8,6 +8,7 @@ import android.content.ComponentName;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Bundle;
 import android.preference.CheckBoxPreference;
 import android.preference.Preference;
@@ -111,8 +112,9 @@ public class ModeSelector extends PreferenceActivity
             return new AlertDialog.Builder(this)
                 .setTitle(R.string.dlg_search_title)
                 .setView(view)
-                .setNegativeButton(android.R.string.cancel, null)
                 .setPositiveButton(android.R.string.ok, null)
+                .setNeutralButton(R.string.btn_view_on_web, null)
+                .setNegativeButton(android.R.string.cancel, null)
                 .create();
         }
 
@@ -137,7 +139,7 @@ public class ModeSelector extends PreferenceActivity
             AlertDialog dlg = (AlertDialog)dialog;
             dlg.setButton(
                 AlertDialog.BUTTON_POSITIVE,
-                null,
+                getString(android.R.string.ok),
                 new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int witch) {
                         CharSequence text = edit_word.getText();
@@ -145,6 +147,19 @@ public class ModeSelector extends PreferenceActivity
                             dialog.dismiss();
                             finish();
                         }
+                    }
+                });
+            dlg.setButton(
+                AlertDialog.BUTTON_NEUTRAL,
+                getString(R.string.btn_view_on_web),
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int witch) {
+                        CharSequence text = edit_word.getText();
+                        String uri_str =
+                            getString(R.string.search_web_uri) +
+                            Uri.encode(text.toString());
+                        startActivity(
+                            new Intent(Intent.ACTION_VIEW, Uri.parse(uri_str)));
                     }
                 });
         }
