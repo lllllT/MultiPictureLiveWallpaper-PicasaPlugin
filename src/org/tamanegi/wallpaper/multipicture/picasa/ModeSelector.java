@@ -3,7 +3,6 @@ package org.tamanegi.wallpaper.multipicture.picasa;
 import org.tamanegi.wallpaper.multipicture.plugin.PictureSourceContract;
 
 import android.app.AlertDialog;
-import android.app.Dialog;
 import android.content.ComponentName;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -20,14 +19,15 @@ import android.widget.Toast;
 
 public class ModeSelector extends PreferenceActivity
 {
-    private static final int DLG_SEARCH_WORD = 1;
+    private static final String STATE_KEY_SEARCH_TEXT = "search_text";
 
     private String key;
     private boolean need_clear;
 
     private SharedPreferences pref;
 
-    private EditText edit_word;
+    private AlertDialog edit_dialog;
+    private CharSequence edit_word_text;
 
     @Override
     protected void onCreate(Bundle savedInstanceState)
@@ -91,6 +91,54 @@ public class ModeSelector extends PreferenceActivity
     }
 
     @Override
+    protected void onSaveInstanceState (Bundle state)
+    {
+        super.onSaveInstanceState(state);
+
+        if(edit_dialog != null) {
+            EditText edit_word = (EditText)
+                edit_dialog.findViewById(R.id.dialog_edittext);
+            edit_word_text = edit_word.getText();
+            state.putCharSequence(STATE_KEY_SEARCH_TEXT, edit_word_text);
+        }
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle state)
+    {
+        super.onRestoreInstanceState(state);
+
+        if(state != null) {
+            edit_word_text = state.getCharSequence(STATE_KEY_SEARCH_TEXT);
+        }
+        else {
+            edit_word_text = null;
+        }
+    }
+
+    @Override
+    protected void onResume()
+    {
+        super.onResume();
+
+        if(edit_word_text != null) {
+            showSearchCommunity(edit_word_text);
+            edit_word_text = null;
+        }
+    }
+
+    @Override
+    protected void onPause()
+    {
+        super.onPause();
+
+        if(edit_dialog != null) {
+            edit_dialog.dismiss();
+            edit_dialog = null;
+        }
+    }
+
+    @Override
     protected void onActivityResult(int reqCode, int resultCode, Intent data)
     {
         if(resultCode == RESULT_CANCELED) {
@@ -101,70 +149,6 @@ public class ModeSelector extends PreferenceActivity
         finish();
     }
 
-    @Override
-    protected Dialog onCreateDialog(int id, Bundle args)
-    {
-        if(id == DLG_SEARCH_WORD) {
-            View view = getLayoutInflater().inflate(
-                R.layout.dialog_edittext, null);
-            edit_word = (EditText)view.findViewById(R.id.dialog_edittext);
-
-            return new AlertDialog.Builder(this)
-                .setTitle(R.string.dlg_search_title)
-                .setView(view)
-                .setPositiveButton(android.R.string.ok, null)
-                .setNeutralButton(R.string.btn_view_on_web, null)
-                .setNegativeButton(android.R.string.cancel, null)
-                .create();
-        }
-
-        return null;
-    }
-
-    @Override
-    protected void onPrepareDialog(int id, Dialog dialog, Bundle args)
-    {
-        super.onPrepareDialog(id, dialog, args);
-
-        if(id == DLG_SEARCH_WORD) {
-            CharSequence text =
-                (! args.getBoolean(PictureSourceContract.EXTRA_CLEAR_PREVIOUS) ?
-                 pref.getString(
-                     String.format(Settings.SEARCH_WORD_KEY, key), "") :
-                 "");
-            edit_word.setText(text);
-
-            final String mode = args.getString(Settings.MODE_KEY);
-
-            AlertDialog dlg = (AlertDialog)dialog;
-            dlg.setButton(
-                AlertDialog.BUTTON_POSITIVE,
-                getString(android.R.string.ok),
-                new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int witch) {
-                        CharSequence text = edit_word.getText();
-                        if(applyModeSearch(mode, text)) {
-                            dialog.dismiss();
-                            finish();
-                        }
-                    }
-                });
-            dlg.setButton(
-                AlertDialog.BUTTON_NEUTRAL,
-                getString(R.string.btn_view_on_web),
-                new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int witch) {
-                        CharSequence text = edit_word.getText();
-                        String uri_str =
-                            getString(R.string.search_web_uri) +
-                            Uri.encode(text.toString());
-                        startActivity(
-                            new Intent(Intent.ACTION_VIEW, Uri.parse(uri_str)));
-                    }
-                });
-        }
-    }
-
     public void onModeFeatured(Preference preference)
     {
         applyModeFeatured();
@@ -173,11 +157,11 @@ public class ModeSelector extends PreferenceActivity
 
     public void onModeSearchCommunity(Preference preference)
     {
-        Bundle args = new Bundle();
-        args.putBoolean(PictureSourceContract.EXTRA_CLEAR_PREVIOUS,
-                        ! ((CheckBoxPreference)preference).isChecked());
-        args.putString(Settings.MODE_KEY, Settings.MODE_SEARCH_COMMUNITY_VAL);
-        showDialog(DLG_SEARCH_WORD, args);
+        CharSequence text =
+            (((CheckBoxPreference)preference).isChecked() ?
+             pref.getString(String.format(Settings.SEARCH_WORD_KEY, key), "") :
+             "");
+        showSearchCommunity(text);
     }
 
     public void onModeMyPhotos(Preference preference)
@@ -188,6 +172,61 @@ public class ModeSelector extends PreferenceActivity
             .putExtra(PictureSourceContract.EXTRA_CLEAR_PREVIOUS,
                       ! ((CheckBoxPreference)preference).isChecked());
         startActivityForResult(next, 0);
+    }
+
+    private void showSearchCommunity(CharSequence text)
+    {
+        View view = getLayoutInflater().inflate(
+            R.layout.dialog_edittext, null);
+        EditText edit_word = (EditText)view.findViewById(R.id.dialog_edittext);
+        edit_word.setText(text);
+
+        edit_dialog = new AlertDialog.Builder(this)
+            .setTitle(R.string.dlg_search_title)
+            .setView(view)
+            .setPositiveButton(
+                android.R.string.ok,
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int witch) {
+                        EditText edit_word = (EditText)
+                            edit_dialog.findViewById(R.id.dialog_edittext);
+                        CharSequence text = edit_word.getText();
+                        if(applyModeSearch(Settings.MODE_SEARCH_COMMUNITY_VAL,
+                                           text)) {
+                            edit_word = null;
+                            dialog.dismiss();
+                            finish();
+                        }
+                    }
+                })
+            .setNeutralButton(
+                R.string.btn_view_on_web,
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int witch) {
+                        EditText edit_word = (EditText)
+                            edit_dialog.findViewById(R.id.dialog_edittext);
+                        CharSequence text = edit_word.getText();
+                        String uri_str =
+                            getString(R.string.search_web_uri) +
+                            Uri.encode(text.toString());
+                        startActivity(
+                            new Intent(Intent.ACTION_VIEW, Uri.parse(uri_str)));
+                    }
+                })
+            .setNegativeButton(
+                android.R.string.cancel,
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int witch) {
+                        edit_dialog = null;
+                    }
+                })
+            .setOnCancelListener(
+                new DialogInterface.OnCancelListener() {
+                    public void onCancel(DialogInterface dialog) {
+                        edit_dialog = null;
+                    }
+                })
+            .show();
     }
 
     private void applyModeFeatured()

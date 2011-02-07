@@ -738,8 +738,8 @@ public class CachedData
         public SQLiteDatabase openOrCreateDatabase(
             String name, int mode, CursorFactory factory)
         {
-            return super.openOrCreateDatabase(
-                getDatabasePathString(name), mode, factory);
+            String path = getDatabasePathString(name);
+            return SQLiteDatabase.openOrCreateDatabase(path, factory);
         }
 
         public boolean deleteDatabase(String name)
