@@ -233,10 +233,8 @@ public class PicasaAlbumSource extends PreferenceActivity
 
             progress = ProgressDialog.show(
                 PicasaAlbumSource.this,
-                getString(R.string.pref_myphotos_title),
-                getString(R.string.msg_loading),
-                true,
-                true, this);
+                null, getString(R.string.msg_loading),
+                true, true, this);
         }
 
         @Override
@@ -251,7 +249,12 @@ public class PicasaAlbumSource extends PreferenceActivity
         protected void onPostExecute(Feed result)
         {
             updateAlbumList(result);
-            progress.dismiss();
+            try {
+                progress.dismiss();
+            }
+            catch(Exception e) {
+                // ignore
+            }
 
             if(result != null) {
                 processing = false;
