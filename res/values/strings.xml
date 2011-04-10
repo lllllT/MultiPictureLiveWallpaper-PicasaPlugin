@@ -43,5 +43,5 @@
   <!-- DO NOT localize below -->
   <string name="header_app_name">Picasa-MultiPictureLiveWallpaper/%s</string>
   <string name="lwp_search_uri">market://search?q=pname:org.tamanegi.wallpaper.multipicture</string>
-  <string name="search_web_uri">https://picasaweb.google.com/m/viewer#search//</string>
+  <string name="search_web_uri">https://picasaweb.google.com/m/viewer?fgl=true&amp;pli=1#search//</string>
 </resources>
