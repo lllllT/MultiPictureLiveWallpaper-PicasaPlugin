@@ -248,8 +248,8 @@ public class PicasaAlbumSource extends PreferenceActivity
         @Override
         protected void onPostExecute(Feed result)
         {
-            updateAlbumList(result);
             try {
+                updateAlbumList(result);
                 progress.dismiss();
             }
             catch(Exception e) {

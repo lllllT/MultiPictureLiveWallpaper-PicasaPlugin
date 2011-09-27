@@ -82,7 +82,7 @@ public class CachedData
                     if(last_update >= 0 &&
                        cur_time >= last_update &&
                        cur_time - last_update < FEATURED_CACHE_LIFETIME) {
-                        return;
+                        continue;
                     }
 
                     Feed feed = connection.executeGetFeed(
