@@ -12,6 +12,7 @@ import java.util.Random;
 
 import org.tamanegi.wallpaper.multipicture.picasa.content.Entry;
 import org.tamanegi.wallpaper.multipicture.picasa.content.Feed;
+import org.tamanegi.wallpaper.multipicture.picasa.content.FeedResponse;
 
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpResponse;
@@ -38,7 +39,7 @@ public class CachedData
         public int rotation;
     }
 
-    private static final int FEATURED_CACHE_LIFETIME = (24 * 60 * 60 * 1000);
+    private static final int CACHE_LIFETIME = (24 * 60 * 60 * 1000);
     private static final int MAX_CACHED_CONTENT = 50;
     private static final int BUFFER_SIZE = 1024 * 8;
 
@@ -81,14 +82,28 @@ public class CachedData
                     long cur_time = System.currentTimeMillis();
                     if(last_update >= 0 &&
                        cur_time >= last_update &&
-                       cur_time - last_update < FEATURED_CACHE_LIFETIME) {
+                       cur_time - last_update < CACHE_LIFETIME) {
                         continue;
                     }
 
-                    Feed feed = connection.executeGetFeed(
-                        url, account_name, follow_next);
+                    String etag = getCacheEtag(db, location, "");
+
+                    FeedResponse response = connection.executeGetFeed(
+                        url, account_name, follow_next, etag);
+                    if(response == null) {
+                        continue;
+                    }
+
+                    if(response.isNotModified()) {
+                        updateCacheLastUpdate(
+                            db, CacheInfoColumns.CACHE_TYPE_LIST,
+                            location, "", etag);
+                        continue;
+                    }
+
+                    Feed feed = response.feed;
                     if(feed != null && feed.entries != null) {
-                        updatePhotoList(db, location, feed);
+                        updatePhotoList(db, location, feed, response.etag);
                     }
                 }
 
@@ -155,8 +170,33 @@ public class CachedData
         }
     }
 
+    private String getCacheEtag(SQLiteDatabase db,
+                                String location, String timestamp)
+    {
+        Cursor cur = db.query(
+            CacheInfoColumns.TABLE_NAME,
+            CacheInfoColumns.ALL_COLUMNS,
+            CacheInfoColumns.LOCATION + " = ? AND " +
+            CacheInfoColumns.ACCOUNT_NAME + " = ? AND " +
+            CacheInfoColumns.TIMESTAMP + " = ?",
+            new String[] { location, account_name, timestamp }, // WHERE
+            null, null, null);
+        try {
+            if(cur.moveToFirst()) {
+                return cur.getString(CacheInfoColumns.COL_IDX_ETAG);
+            }
+            else {
+                return null;
+            }
+        }
+        finally {
+            cur.close();
+        }
+    }
+
     private long updateCacheLastUpdate(SQLiteDatabase db, String type,
-                                       String location, String timestamp)
+                                       String location, String timestamp,
+                                       String etag)
     {
         db.delete(CacheInfoColumns.TABLE_NAME,
                   CacheInfoColumns.LOCATION + " = ? AND " +
@@ -172,6 +212,7 @@ public class CachedData
         vals.put(CacheInfoColumns.TIMESTAMP, timestamp);
         vals.put(CacheInfoColumns.LAST_UPDATE, cur_time);
         vals.put(CacheInfoColumns.LAST_ACCESS, cur_time);
+        vals.put(CacheInfoColumns.ETAG, etag);
 
         return db.insert(CacheInfoColumns.TABLE_NAME, "", vals);
     }
@@ -189,7 +230,8 @@ public class CachedData
                   new String[] { location, account_name });
     }
 
-    private void updatePhotoList(SQLiteDatabase db, String location, Feed feed)
+    private void updatePhotoList(SQLiteDatabase db, String location,
+                                 Feed feed, String etag)
     {
         db.delete(AlbumColumns.TABLE_NAME,
                   AlbumColumns.LOCATION + " = ? AND " +
@@ -210,7 +252,7 @@ public class CachedData
         }
 
         updateCacheLastUpdate(db, CacheInfoColumns.CACHE_TYPE_LIST,
-                              location, "");
+                              location, "", etag);
     }
 
     private ContentInfo getCachedContent(SQLiteDatabase db,
@@ -430,7 +472,7 @@ public class CachedData
 
         // regist id for file name
         long id = updateCacheLastUpdate(db, CacheInfoColumns.CACHE_TYPE_CONTENT,
-                                        url, timestamp);
+                                        url, timestamp, null);
         if(id < 0) {
             return null;
         }
@@ -442,7 +484,7 @@ public class CachedData
 
         // get content
         HttpResponse response =
-            connection.executeGet(new GenericUrl(url), account_name);
+            connection.executeGet(new GenericUrl(url), account_name, null);
         if(response == null) {
             return null;
         }
@@ -608,13 +650,15 @@ public class CachedData
         public static final String TIMESTAMP = "timestamp";
         public static final String LAST_UPDATE = "last_update";
         public static final String LAST_ACCESS = "last_access";
+        public static final String ETAG = "etag";
 
         public static final String[] ALL_COLUMNS = {
-            _ID, LOCATION, ACCOUNT_NAME, LAST_UPDATE, LAST_ACCESS
+            _ID, LOCATION, ACCOUNT_NAME, LAST_UPDATE, LAST_ACCESS, ETAG
         };
         public static final int COL_IDX_ID = 0;
         public static final int COL_IDX_LOCATION = 1;
         public static final int COL_IDX_LAST_UPDATE = 3;
+        public static final int COL_IDX_ETAG = 5;
 
         public static final String CACHE_TYPE_LIST = "list";
         public static final String CACHE_TYPE_CONTENT = "content";
@@ -684,7 +728,10 @@ public class CachedData
     private static class DataHelper extends SQLiteOpenHelper
     {
         private static final String DB_NAME = "list.db";
-        private static final int DB_VERSION = 1;
+
+        private static final int DB_VERSION_V1 = 1;
+        private static final int DB_VERSION_V2 = 2;
+        private static final int DB_VERSION = DB_VERSION_V2;
 
         private DataHelper(Context context)
         {
@@ -702,7 +749,8 @@ public class CachedData
                 CacheInfoColumns.ACCOUNT_NAME + " TEXT," +
                 CacheInfoColumns.TIMESTAMP + " TEXT," +
                 CacheInfoColumns.LAST_UPDATE + " INTEGER," +
-                CacheInfoColumns.LAST_ACCESS + " INTEGER" +
+                CacheInfoColumns.LAST_ACCESS + " INTEGER," +
+                CacheInfoColumns.ETAG + " TEXT" +
                 ");");
 
             db.execSQL(
@@ -721,9 +769,18 @@ public class CachedData
         @Override
         public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion)
         {
-            db.execSQL("DROP TABLE IF EXISTS " + CacheInfoColumns.TABLE_NAME);
-            db.execSQL("DROP TABLE IF EXISTS " + AlbumColumns.TABLE_NAME);
-            onCreate(db);
+            if(oldVersion == DB_VERSION_V1) {
+                db.execSQL(
+                    "ALTER TABLE " + CacheInfoColumns.TABLE_NAME +
+                    " ADD COLUMN " + CacheInfoColumns.ETAG);
+            }
+            else {
+                db.execSQL(
+                    "DROP TABLE IF EXISTS " + CacheInfoColumns.TABLE_NAME);
+                db.execSQL(
+                    "DROP TABLE IF EXISTS " + AlbumColumns.TABLE_NAME);
+                onCreate(db);
+            }
         }
     }
 

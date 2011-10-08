@@ -2,6 +2,7 @@ package org.tamanegi.wallpaper.multipicture.picasa;
 
 import org.tamanegi.wallpaper.multipicture.picasa.content.Entry;
 import org.tamanegi.wallpaper.multipicture.picasa.content.Feed;
+import org.tamanegi.wallpaper.multipicture.picasa.content.FeedResponse;
 import org.tamanegi.wallpaper.multipicture.picasa.content.PicasaUrl;
 import org.tamanegi.wallpaper.multipicture.plugin.PictureSourceContract;
 
@@ -242,7 +243,9 @@ public class PicasaAlbumSource extends PreferenceActivity
         {
             PicasaUrl url = PicasaUrl.userBasedUrl(user_id);
             url.kind = "album";
-            return connection.executeGetFeed(url, account_name, true);
+            FeedResponse response =
+                connection.executeGetFeed(url, account_name, true, null);
+            return (response != null ? response.feed : null);
         }
 
         @Override

@@ -8,15 +8,10 @@ http://www.tamanegi.org/prog/android-apps/
 google-api-java-client:
 Following files are written by Google.
 These files are licensed under the Apache License 2.0.
-  libs/google-api-client-apache-1.2.2-alpha.jar
-  libs/google-api-client-escape-1.2.2-alpha.jar
-  libs/google-api-client-googleapis-1.2.2-alpha.jar
-  libs/google-api-client-googleapis-xml-atom-1.2.2-alpha.jar
-  libs/google-api-client-http-1.2.2-alpha.jar
-  libs/google-api-client-repackaged-com-google-common-base-1.2.2-alpha.jar
-  libs/google-api-client-util-1.2.2-alpha.jar
-  libs/google-api-client-xml-1.2.2-alpha.jar
-  libs/google-api-client-xml-atom-1.2.2-alpha.jar
+  libs/google-api-client-1.5.0-beta.jar
+  libs/google-http-client-1.5.0-beta.jar
+  libs/google-http-client-extensions-android2-1.5.0-beta.jar
+  libs/guava-r09.jar
 
 http://code.google.com/p/google-api-java-client/
 

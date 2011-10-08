@@ -3,15 +3,17 @@ package org.tamanegi.wallpaper.multipicture.picasa;
 import java.io.IOException;
 
 import org.tamanegi.wallpaper.multipicture.picasa.content.Feed;
+import org.tamanegi.wallpaper.multipicture.picasa.content.FeedResponse;
 
+import com.google.api.client.extensions.android2.AndroidHttp;
 import com.google.api.client.googleapis.GoogleHeaders;
-import com.google.api.client.googleapis.GoogleTransport;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpRequest;
+import com.google.api.client.http.HttpRequestFactory;
 import com.google.api.client.http.HttpResponse;
 import com.google.api.client.http.HttpResponseException;
 import com.google.api.client.http.HttpTransport;
-import com.google.api.client.xml.atom.AtomParser;
+import com.google.api.client.http.xml.atom.AtomParser;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
@@ -30,7 +32,7 @@ public class Connection
     private AccountManagerFuture<Bundle> auth_future = null;
 
     private HttpTransport transport;
-    private GoogleHeaders headers;
+    private HttpRequestFactory factory;
 
     public Connection(Context context)
     {
@@ -38,54 +40,54 @@ public class Connection
 
         accmgr = AccountManager.get(context);
 
-        transport = GoogleTransport.create();
-
-        headers = (GoogleHeaders)transport.defaultHeaders;
-        headers.setApplicationName(getUserAgent());
-        headers.gdataVersion = "2";
-
-        AtomParser parser = new AtomParser();
-        parser.namespaceDictionary = Feed.NAMESPACES;
-        transport.addParser(parser);
+        transport = AndroidHttp.newCompatibleTransport();
+        factory = transport.createRequestFactory();
     }
 
-    public Feed executeGetFeed(GenericUrl url, String account_name,
-                               boolean follow_next)
+    public FeedResponse executeGetFeed(GenericUrl url, String account_name,
+                                       boolean follow_next, String etag)
     {
-        Feed result = null;
+        FeedResponse result = null;
         while(true) {
-            Feed data;
+            FeedResponse data = null;
             try {
-                HttpResponse response = executeGet(url, account_name);
-                data = (response != null ? response.parseAs(Feed.class) : null);
+                HttpResponse response = executeGet(url, account_name, etag);
+                if(response == null) {
+                    return null;
+                }
+
+                data = new FeedResponse(
+                    response.getStatusCode(),
+                    response.parseAs(Feed.class),
+                    response.getHeaders().getETag());
             }
             catch(IOException e) {
                 e.printStackTrace();
-                data = null;
+                return null;
             }
-            if(data == null) {
-                break;
+            if(data.isNotModified()) {
+                return data;
             }
 
-            if(result == null || result.entries == null) {
+            if(result == null ||
+               result.feed == null || result.feed.entries == null) {
                 result = data;
             }
-            else if(data.entries != null) {
-                result.entries.addAll(data.entries);
+            else if(data.feed != null && data.feed.entries != null) {
+                result.feed.entries.addAll(data.feed.entries);
             }
 
-            String next_url = (follow_next ? data.getNextLink() : null);
+            String next_url = (follow_next ? data.feed.getNextLink() : null);
             if(next_url == null) {
-                break;
+                return result;
             }
 
             url = new GenericUrl(next_url);
         }
-
-        return result;
     }
 
-    public HttpResponse executeGet(GenericUrl url, String account_name)
+    public HttpResponse executeGet(GenericUrl url, String account_name,
+                                   String etag)
     {
         boolean firsttime = true;
         while(true) {
@@ -95,19 +97,28 @@ public class Connection
                 if(authtoken == null) {
                     return null;
                 }
-
-                headers.setGoogleLogin(authtoken);
             }
 
-            HttpRequest request = transport.buildGetRequest();
-            request.url = url;
-
             try {
+                HttpRequest request = factory.buildGetRequest(url);
+
+                GoogleHeaders headers = new GoogleHeaders();
+                headers.setApplicationName(getUserAgent());
+                headers.gdataVersion = "2";
+                if(authtoken != null) {
+                    headers.setGoogleLogin(authtoken);
+                }
+                headers.setIfNoneMatch(etag);
+                request.setHeaders(headers);
+
+                AtomParser parser = new AtomParser(Feed.NAMESPACES);
+                request.addParser(parser);
+
                 return request.execute();
             }
             catch(HttpResponseException e) {
-                if(e.response.statusCode == 401 ||
-                   e.response.statusCode == 403) {
+                int code = e.getResponse().getStatusCode();
+                if(code == 401 || code == 403) {
                     if(firsttime &&
                        account_name != null && account_name.length() > 0) {
                         accmgr.invalidateAuthToken(
@@ -116,6 +127,9 @@ public class Connection
                         firsttime = false;
                         continue;
                     }
+                }
+                if(code == 304) {               // Not Modified
+                    return e.getResponse();
                 }
 
                 e.printStackTrace();
