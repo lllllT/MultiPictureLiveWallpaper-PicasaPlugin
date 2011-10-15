@@ -269,7 +269,6 @@ public class CachedData
         String selection = null;
         String selection_arg = null;
         String order_by = null;
-        String limit = "1";
 
         if(order == OrderType.name_asc) {
             if(use_last) {
@@ -321,20 +320,19 @@ public class CachedData
         }
         else {
             use_last = false;
-            limit = null;
         }
 
-        StringBuilder location_where = new StringBuilder();
+        StringBuilder where = new StringBuilder();
         String[] where_args = new String[locations.length + 1 +
                                          (selection != null ? 3 : 0)];
         for(int i = 0; i < locations.length; i++) {
-            location_where
+            where
                 .append(i == 0 ? "( " : " OR ")
                 .append(CacheAlbumColumns.LOCATION)
                 .append(" = ?");
             where_args[i] = locations[i];
         }
-        location_where.append(" )");
+        where.append(" )");
 
         where_args[locations.length + 0] = account_name;
         if(selection != null) {
@@ -343,62 +341,82 @@ public class CachedData
             where_args[locations.length + 3] = last_content.photo_id;
         }
 
-        Cursor cur = db.query(
-            CacheAlbumColumns.TABLE_NAME,
-            CacheAlbumColumns.ALL_COLUMNS,
-            location_where +
-            " AND " +
-            CacheAlbumColumns.ACCOUNT_NAME + " = ?" +
-            (only_cached ?
-             " AND " +
-             CacheAlbumColumns.RIGHT_TABLE_NAME + "." +
-             AlbumColumns.LOCATION + " IS NOT NULL" :
-             "") +
-            (selection != null ? " AND ( " + selection + " )" : ""),
-            where_args,                         // WHERE
-            null, null,
-            (order_by != null ? order_by + ", " : "") +
-            CacheAlbumColumns.PHOTO_ID + " ASC", // ORDER BY
-            limit);                             // LIMIT
-        try {
-            if(cur.getCount() < 1) {
-                if(use_last) {
-                    return getCachedContent(db, only_cached, false, last_urls);
+        where.append(" AND ")
+            .append(CacheAlbumColumns.ACCOUNT_NAME).append(" = ?");
+        if(only_cached) {
+            where.append(" AND ")
+                .append(CacheAlbumColumns.RIGHT_TABLE_NAME).append(".")
+                .append(AlbumColumns.LOCATION).append(" IS NOT NULL");
+        }
+        if(selection != null) {
+            where.append(" AND ")
+                .append("( ").append(selection).append(" )");
+        }
+
+        String where_str = where.toString();
+
+        int count = 1;
+        if(order == OrderType.random) {
+            Cursor cur = db.query(
+                CacheAlbumColumns.TABLE_NAME,
+                new String[] { "COUNT(*) AS COUNT" },
+                where_str, where_args,          // WHERE
+                null, null,                     // GROUP BY, HAVING
+                null);                          // ORDER BY
+            try {
+                if(cur.moveToFirst()) {
+                    count = cur.getInt(0);
                 }
-                else {
-                    return null;
-                }
+            }
+            finally {
+                cur.close();
             }
 
             // prepare index list
             if(idx_list == null || idx_list.length != cur.getCount()) {
-                if(order == OrderType.random) {
-                    int cnt = cur.getCount();
-                    idx_list = new int[cnt];
+                idx_list = new int[count];
 
-                    for(int i = 0; i < cnt; i++) {
-                        idx_list[i] = i;
-                    }
+                for(int i = 0; i < count; i++) {
+                    idx_list[i] = i;
+                }
 
-                    cur_info_idx = -1;
-                }
-                else {
-                    idx_list = new int[] { 0 };
-                }
+                cur_info_idx = -1;
             }
+        }
 
-            // get next
-            int retry_saved_idx = -1;
-            ContentInfo retry_saved_info = null;
+        String limit = "1";
+        int retry_saved_idx = -1;
+        ContentInfo retry_saved_info = null;
 
-            int cnt = idx_list.length;
-            for(int i = 0; i < cnt; i++) {
-                int next_idx = (cur_info_idx + i + 1) % cnt;
-                if(order == OrderType.random && next_idx == 0) {
+        for(int i = 0; i < count; i++) {
+            int next_idx = (cur_info_idx + i + 1) % count;
+            if(order == OrderType.random) {
+                if(next_idx == 0) {
                     shuffleIndexes();
                 }
 
-                cur.moveToPosition(idx_list[next_idx]);
+                limit = idx_list[next_idx] + ", 1";
+            }
+
+            Cursor cur = db.query(
+                CacheAlbumColumns.TABLE_NAME,
+                CacheAlbumColumns.ALL_COLUMNS,
+                where_str, where_args,              // WHERE
+                null, null,                         // GROUP BY, HAVING
+                (order_by != null ? order_by + ", " : "") +
+                CacheAlbumColumns.PHOTO_ID + " ASC", // ORDER BY
+                limit);                              // LIMIT
+            try {
+                if(! cur.moveToFirst()) {
+                    if(use_last) {
+                        return getCachedContent(
+                            db, only_cached, false, last_urls);
+                    }
+                    else {
+                        return null;
+                    }
+                }
+
                 ContentInfo info = new ContentInfo();
                 info.photo_id =
                     cur.getString(CacheAlbumColumns.COL_IDX_PHOTO_ID);
@@ -423,18 +441,18 @@ public class CachedData
                 last_content = info;
                 return info;
             }
-
-            if(retry_saved_info != null) {
-                cur_info_idx = retry_saved_idx;
-                last_content = retry_saved_info;
-                return retry_saved_info;
+            finally {
+                cur.close();
             }
+        }
 
-            return null;
+        if(retry_saved_info != null) {
+            cur_info_idx = retry_saved_idx;
+            last_content = retry_saved_info;
+            return retry_saved_info;
         }
-        finally {
-            cur.close();
-        }
+
+        return null;
     }
 
     private String updateCachedContent(SQLiteDatabase db,
