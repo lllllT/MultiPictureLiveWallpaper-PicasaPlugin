@@ -514,6 +514,7 @@ public class CachedData
         BufferedOutputStream out = null;
         try {
             try {
+                response.setDisableContentLogging(true);
                 in = response.getContent();
                 out = new BufferedOutputStream(new FileOutputStream(file),
                                                BUFFER_SIZE);
