@@ -73,7 +73,6 @@ public class CachedData
         synchronized(lock) {
             SQLiteDatabase db = helper.getWritableDatabase();
 
-            db.beginTransaction();
             try {
                 for(GenericUrl url: urls) {
                     String location = url.build();
@@ -94,23 +93,26 @@ public class CachedData
                         continue;
                     }
 
-                    if(response.isNotModified()) {
-                        updateCacheLastUpdate(
-                            db, CacheInfoColumns.CACHE_TYPE_LIST,
-                            location, "", etag);
-                        continue;
-                    }
+                    db.beginTransaction();
+                    try {
+                        Feed feed = response.feed;
+                        if(response.isNotModified()) {
+                            updateCacheLastUpdate(
+                                db, CacheInfoColumns.CACHE_TYPE_LIST,
+                                location, "", etag);
+                        }
+                        else if(feed != null && feed.entries != null) {
+                            updatePhotoList(db, location, feed, response.etag);
+                        }
 
-                    Feed feed = response.feed;
-                    if(feed != null && feed.entries != null) {
-                        updatePhotoList(db, location, feed, response.etag);
+                        db.setTransactionSuccessful();
+                    }
+                    finally {
+                        db.endTransaction();
                     }
                 }
-
-                db.setTransactionSuccessful();
             }
             finally {
-                db.endTransaction();
                 db.close();
             }
         }
