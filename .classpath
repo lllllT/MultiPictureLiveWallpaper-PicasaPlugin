@@ -8,5 +8,5 @@
 	<classpathentry kind="lib" path="libs/google-http-client-1.5.0-beta.jar"/>
 	<classpathentry kind="lib" path="libs/google-http-client-extensions-android2-1.5.0-beta.jar"/>
 	<classpathentry kind="lib" path="libs/guava-r09.jar"/>
-	<classpathentry kind="output" path="bin"/>
+	<classpathentry kind="output" path="bin/classes"/>
 </classpath>
