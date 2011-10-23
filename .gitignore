@@ -1,2 +1,4 @@
 bin
 gen
+libs/google-*.jar
+libs/guava-*.jar

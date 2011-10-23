@@ -1,19 +1,7 @@
 About "Picasa for MultiPicture Live Wallpaper":
-Picasa for MultiPicture Live Wallpaper is in public domain except for
-under "libs" directory.
+Picasa for MultiPicture Live Wallpaper is in public domain.
 
 http://www.tamanegi.org/prog/android-apps/
-
-
-google-api-java-client:
-Following files are written by Google.
-These files are licensed under the Apache License 2.0.
-  libs/google-api-client-1.5.0-beta.jar
-  libs/google-http-client-1.5.0-beta.jar
-  libs/google-http-client-extensions-android2-1.5.0-beta.jar
-  libs/guava-r09.jar
-
-http://code.google.com/p/google-api-java-client/
 
 
 MultiPicture Live Wallpaper plugin SDK:
