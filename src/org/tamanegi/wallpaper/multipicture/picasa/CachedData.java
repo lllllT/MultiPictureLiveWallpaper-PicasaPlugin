@@ -111,6 +111,8 @@ public class CachedData
                         db.endTransaction();
                     }
                 }
+
+                deleteExpiredList(db);
             }
             finally {
                 db.close();
@@ -255,6 +257,45 @@ public class CachedData
 
         updateCacheLastUpdate(db, CacheInfoColumns.CACHE_TYPE_LIST,
                               location, "", etag);
+    }
+
+    private void deleteExpiredList(SQLiteDatabase db)
+    {
+        long cur_time = System.currentTimeMillis();
+        String exp_time = String.valueOf(cur_time - CACHE_LIFETIME * 2);
+
+        Cursor cur = db.query(
+            CacheInfoColumns.TABLE_NAME,
+            CacheInfoColumns.ALL_COLUMNS,
+            CacheInfoColumns.TYPE + " = ? AND " +
+            CacheInfoColumns.LAST_UPDATE + " <= ? AND " +
+            CacheInfoColumns.LAST_ACCESS + " <= ?",
+            new String[] { CacheInfoColumns.CACHE_TYPE_LIST,
+                           exp_time, exp_time },
+            null, null, null);
+        try {
+            while(cur.moveToNext()) {
+                String location =
+                    cur.getString(CacheInfoColumns.COL_IDX_LOCATION);
+                String account =
+                    cur.getString(CacheInfoColumns.COL_IDX_ACCOUNT_NAME);
+
+                db.delete(AlbumColumns.TABLE_NAME,
+                          AlbumColumns.LOCATION + " = ? AND " +
+                          AlbumColumns.ACCOUNT_NAME + " = ?",
+                          new String[] { location, account });
+            }
+        }
+        finally {
+            cur.close();
+        }
+
+        db.delete(CacheInfoColumns.TABLE_NAME,
+                  CacheInfoColumns.TYPE + " = ? AND " +
+                  CacheInfoColumns.LAST_UPDATE + " <= ? AND " +
+                  CacheInfoColumns.LAST_ACCESS + " <= ?",
+                  new String[] { CacheInfoColumns.CACHE_TYPE_LIST,
+                                 exp_time, exp_time });
     }
 
     private ContentInfo getCachedContent(SQLiteDatabase db,
@@ -678,6 +719,7 @@ public class CachedData
         };
         public static final int COL_IDX_ID = 0;
         public static final int COL_IDX_LOCATION = 1;
+        public static final int COL_IDX_ACCOUNT_NAME = 2;
         public static final int COL_IDX_LAST_UPDATE = 3;
         public static final int COL_IDX_ETAG = 5;
 
