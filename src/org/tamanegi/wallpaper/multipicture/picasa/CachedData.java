@@ -21,6 +21,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.database.Cursor;
+import android.database.DatabaseErrorHandler;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.database.sqlite.SQLiteDatabase.CursorFactory;
@@ -296,6 +297,9 @@ public class CachedData
                   CacheInfoColumns.LAST_ACCESS + " <= ?",
                   new String[] { CacheInfoColumns.CACHE_TYPE_LIST,
                                  exp_time, exp_time });
+
+        // delete if unused file exist
+        context.getDatabasePath(DataHelper.DB_NAME).delete();
     }
 
     private ContentInfo getCachedContent(SQLiteDatabase db,
@@ -860,6 +864,15 @@ public class CachedData
         {
             String path = getDatabasePathString(name);
             return SQLiteDatabase.openOrCreateDatabase(path, factory);
+        }
+
+        @Override
+        public SQLiteDatabase openOrCreateDatabase(
+            String name, int mode, CursorFactory factory,
+            DatabaseErrorHandler ehandler)
+        {
+            String path = getDatabasePathString(name);
+            return SQLiteDatabase.openOrCreateDatabase(path, factory, ehandler);
         }
 
         public boolean deleteDatabase(String name)
