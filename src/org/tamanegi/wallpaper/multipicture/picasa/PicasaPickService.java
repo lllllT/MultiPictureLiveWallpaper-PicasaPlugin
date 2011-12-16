@@ -116,6 +116,16 @@ public class PicasaPickService extends LazyPickService
             String mode_val =
                 pref.getString(mode_key, Settings.MODE_FEATURED_VAL);
 
+            // max size of retrieving images
+            int maxwh = Math.max(hint.getScreenWidth(), hint.getScreenHeight());
+            String imgmax = "d";
+            for(int v : PicasaUrl.VALID_UNCROPPED_SIZES) {
+                if(v >= maxwh * 2) {
+                    imgmax = String.valueOf(v);
+                    break;
+                }
+            }
+
             String account_name;
             PicasaUrl[] urls;
 
@@ -136,6 +146,7 @@ public class PicasaPickService extends LazyPickService
                 for(int i = 0; i < album_ids.length; i++) {
                     urls[i] = PicasaUrl.albumBasedUrl(userid_val, album_ids[i]);
                     urls[i].kind = "photo";
+                    urls[i].imgmax = imgmax;
                 }
 
                 String order_key = String.format(Settings.ORDER_KEY, key);
@@ -157,12 +168,14 @@ public class PicasaPickService extends LazyPickService
                 urls = new PicasaUrl[] {
                     PicasaUrl.communitySearchUrl(word_val)
                 };
+                urls[0].imgmax = imgmax;
             }
             else {
                 // featured mode
                 account_name = "";
                 change_order = OrderType.random;
                 urls = new PicasaUrl[] { PicasaUrl.featuredPhotosUrl() };
+                urls[0].imgmax = imgmax;
             }
 
             cached_data = new CachedData(PicasaPickService.this,
