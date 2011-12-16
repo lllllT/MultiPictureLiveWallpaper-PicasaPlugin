@@ -7,12 +7,12 @@
 
   <ListView android:id="@android:id/list"
             android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="0dp"
             android:layout_weight="1"
             />
   <TextView android:id="@android:id/empty"
             android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="0dp"
             android:layout_weight="1"
             android:text="@string/msg_no_account"
             android:textAppearance="?android:attr/textAppearanceMedium"
@@ -23,38 +23,30 @@
      android:layout_width="fill_parent"
      android:layout_height="wrap_content"
      android:minHeight="54dp"
-     android:orientation="vertical"
+     android:paddingTop="4dp"
+     android:paddingLeft="2dp"
+     android:paddingRight="2dp"
+     android:orientation="horizontal"
      android:background="@drawable/bottom_area"
      >
-    <LinearLayout
-       android:layout_width="fill_parent"
+    <View
+       android:layout_width="0dp"
+       android:layout_height="0dp"
+       android:layout_weight="0.25"
+       />
+    <Button
+       android:text="@string/pref_account_add_button"
+       android:layout_width="0dp"
        android:layout_height="wrap_content"
-       android:paddingTop="4dp"
-       android:paddingLeft="2dp"
-       android:paddingRight="2dp"
-       android:orientation="horizontal"
-       >
-      <LinearLayout
-         android:layout_width="0dp"
-         android:layout_height="wrap_content"
-         android:orientation="horizontal"
-         android:layout_weight="0.25"
-         />
-      <Button
-         android:text="@string/pref_account_add_button"
-         android:layout_width="0dp"
-         android:layout_height="wrap_content"
-         android:layout_weight="1"
-         android:layout_gravity="center"
-         android:onClick="onButtonAddAccount"
-         />
-      <LinearLayout
-         android:layout_width="0dp"
-         android:layout_height="wrap_content"
-         android:orientation="horizontal"
-         android:layout_weight="0.25"
-         />
-    </LinearLayout>
+       android:layout_weight="1"
+       android:layout_gravity="center"
+       android:onClick="onButtonAddAccount"
+       />
+    <View
+       android:layout_width="0dp"
+       android:layout_height="0dp"
+       android:layout_weight="0.25"
+       />
   </LinearLayout>
 
 </LinearLayout>
