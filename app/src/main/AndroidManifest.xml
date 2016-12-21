@@ -26,16 +26,13 @@
       </intent-filter>
     </activity>
 
-    <activity android:name=".ModeSelector"
+    <activity android:name=".AccountSelector"
               android:label="@string/setting_title">
       <intent-filter>
         <action android:name="org.tamanegi.wallpaper.multipicture.action.GET_PICTURE_SOURCE" />
         <category android:name="android.intent.category.DEFAULT" />
       </intent-filter>
     </activity>
-
-    <activity android:name=".AccountSelector"
-              android:label="@string/setting_title" />
 
     <activity android:name=".PicasaAlbumSource"
               android:label="@string/setting_title" />
