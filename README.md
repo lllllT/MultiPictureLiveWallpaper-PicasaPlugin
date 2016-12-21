@@ -14,6 +14,9 @@ This plugin needs [MultiPicture Live Wallpaper]
 Build
 -----
 
+copy `keystore.properties.template` to `../keystore.properties`,
+and edit it.
+
 run
 ```
 ./gradlew build
