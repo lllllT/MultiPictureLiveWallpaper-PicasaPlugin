@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
   <!-- DO NOT localize below -->
-  <string name="search_web_uri">https://picasaweb.google.com/lh/view?q=</string>
+  <string name="search_web_uri" translatable="false">https://picasaweb.google.com/lh/view?q=</string>
 </resources>
