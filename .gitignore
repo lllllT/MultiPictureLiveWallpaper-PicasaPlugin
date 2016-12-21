@@ -1,4 +1,9 @@
-bin
-gen
-libs/google-*.jar
-libs/guava-*.jar
+.gradle
+/local.properties
+/.idea/*
+!/.idea/gradle.xml
+*.iml
+.DS_Store
+/build
+/app/build
+*.apk
