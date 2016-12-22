@@ -6,7 +6,7 @@
   <property name="imagemagick.convert.arg" value="convert" />
 
   <property name="src.dir" location="." />
-  <property name="res.dir" location="../res" />
+  <property name="res.dir" location="../app/src/main/res" />
   <property name="ext.dir" location="." />
 
   <property name="icon.512x512.path"
