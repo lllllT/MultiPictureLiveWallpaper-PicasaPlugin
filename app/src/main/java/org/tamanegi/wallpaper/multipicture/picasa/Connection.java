@@ -47,13 +47,14 @@ public class Connection
     public FeedResponse executeGetFeed(GenericUrl url, String account_name,
                                        boolean follow_next, String etag)
     {
+        GenericUrl base_url = url;
         FeedResponse result = null;
         while(true) {
             FeedResponse data = null;
             try {
                 HttpResponse response = executeGet(url, account_name, etag);
                 if(response == null) {
-                    return null;
+                    return result;
                 }
 
                 data = new FeedResponse(
@@ -63,7 +64,7 @@ public class Connection
             }
             catch(IOException e) {
                 e.printStackTrace();
-                return null;
+                return result;
             }
             if(data.isNotModified()) {
                 return data;
@@ -77,12 +78,25 @@ public class Connection
                 result.feed.entries.addAll(data.feed.entries);
             }
 
-            String next_url = (follow_next ? data.feed.getNextLink() : null);
+            GenericUrl next_url = null;
+            if(follow_next && data.feed != null) {
+                String next_link = data.feed.getNextLink();
+                if(next_link != null) {
+                    next_url = new GenericUrl(next_link);
+                }
+                else if(data.feed.numphotos > 0) {
+                    if(data.feed.startIndex + data.feed.itemsPerPage - 1 < data.feed.numphotos) {
+                        next_url = base_url.clone();
+                        next_url.set("start-index", String.valueOf(data.feed.startIndex + data.feed.itemsPerPage));
+                    }
+                }
+            }
             if(next_url == null) {
                 return result;
             }
 
-            url = new GenericUrl(next_url);
+            url = next_url;
+            etag = null;
         }
     }
 
@@ -101,6 +115,7 @@ public class Connection
 
             try {
                 HttpRequest request = factory.buildGetRequest(url);
+                request.setReadTimeout(60 * 1000);
 
                 GoogleHeaders headers = new GoogleHeaders();
                 headers.setApplicationName(getUserAgent());

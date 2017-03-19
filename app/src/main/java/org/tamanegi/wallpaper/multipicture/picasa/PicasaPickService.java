@@ -235,7 +235,7 @@ public class PicasaPickService extends LazyPickService
 
             try {
                 if(isNetworkAvailable()) {
-                    cached_data.updatePhotoList(false);
+                    cached_data.updatePhotoList(true);
                     info = cached_data.getCachedContent(false, last_urls);
                 }
 

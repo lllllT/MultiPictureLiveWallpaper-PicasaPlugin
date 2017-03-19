@@ -10,7 +10,7 @@ public class Feed
     public static final XmlNamespaceDictionary NAMESPACES =
         new XmlNamespaceDictionary()
         .set("", "http://www.w3.org/2005/Atom")
-        .set("openSearch", "http://a9.com/-/spec/opensearchrss/1.0/")
+        .set("openSearch", "http://a9.com/-/spec/opensearch/1.1/")
         .set("media", "http://search.yahoo.com/mrss/")
         .set("georss", "http://www.georss.org/georss")
         .set("gml", "http://www.opengis.net/gml")
@@ -19,6 +19,10 @@ public class Feed
 
     @Key("link") public List<Link> links;
     @Key("entry") public List<Entry> entries;
+
+    @Key("gphoto:numphotos") public int numphotos;
+    @Key("openSearch:startIndex") public int startIndex;
+    @Key("openSearch:itemsPerPage") public int itemsPerPage;
 
     public String getLink(String rel)
     {
