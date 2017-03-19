@@ -21,8 +21,8 @@ android {
         applicationId "org.tamanegi.wallpaper.multipicture.picasa"
         minSdkVersion 11
         targetSdkVersion 11
-        versionCode 7
-        versionName '0.1.6'
+        versionCode 8
+        versionName '0.1.7'
     }
     buildTypes {
         release {
