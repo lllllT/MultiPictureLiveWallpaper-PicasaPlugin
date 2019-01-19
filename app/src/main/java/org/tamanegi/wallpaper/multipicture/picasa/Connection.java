@@ -124,6 +124,7 @@ public class Connection
                     headers.setGoogleLogin(authtoken);
                 }
                 headers.setIfNoneMatch(etag);
+                headers.set("deprecation-extension", "true"); // for extension period until 15 March 2019: https://developers.google.com/picasa-web/docs/3.0/deprecation
                 request.setHeaders(headers);
 
                 AtomParser parser = new AtomParser(Feed.NAMESPACES);
