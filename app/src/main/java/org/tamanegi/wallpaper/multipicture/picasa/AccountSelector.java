@@ -7,9 +7,11 @@ import android.accounts.AccountManager;
 import android.accounts.AccountManagerCallback;
 import android.accounts.AccountManagerFuture;
 import android.accounts.AuthenticatorException;
+import android.annotation.TargetApi;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.CheckBoxPreference;
 import android.preference.Preference;
@@ -17,9 +19,13 @@ import android.preference.PreferenceActivity;
 import android.preference.PreferenceGroup;
 import android.preference.PreferenceManager;
 import android.view.View;
+import android.widget.TextView;
 
 public class AccountSelector extends PreferenceActivity
 {
+    private static final int REQUEST_ALBUM = 1;
+    private static final int REQUEST_ACCOUNT = 2;
+
     private String key;
     private boolean need_clear;
 
@@ -52,19 +58,45 @@ public class AccountSelector extends PreferenceActivity
             account = new Account(acc_name, Settings.ACCOUNT_TYPE);
         }
 
-        // account list
-        updateAccountList();
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            ((TextView)findViewById(android.R.id.empty)).setText("");
+            findViewById(R.id.footer).setVisibility(View.GONE);
+            showAccountChooser();
+        }
+        else {
+            // account list
+            updateAccountList();
+        }
     }
 
     @Override
     protected void onActivityResult(int reqCode, int resultCode, Intent data)
     {
-        if(resultCode == RESULT_CANCELED) {
-            return;
-        }
+        if(reqCode == REQUEST_ALBUM) {
+            if (resultCode == RESULT_CANCELED) {
+                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    showAccountChooser();
+                }
+                return;
+            }
 
-        setResult(resultCode, data);
-        finish();
+            setResult(resultCode, data);
+            finish();
+        }
+        else if(reqCode == REQUEST_ACCOUNT) {
+            if(resultCode == RESULT_OK) {
+                String accName = data.getStringExtra(AccountManager.KEY_ACCOUNT_NAME);
+                Intent next = new Intent(AccountSelector.this, PicasaAlbumSource.class)
+                        .replaceExtras(getIntent())
+                        .putExtra(PicasaAlbumSource.EXTRA_ACCOUNT, accName)
+                        .putExtra(PicasaAlbumSource.EXTRA_USER_ID, "default")
+                        .putExtra(PictureSourceContract.EXTRA_CLEAR_PREVIOUS, account != null && (! account.name.equals(accName)));
+                startActivityForResult(next, REQUEST_ALBUM);
+            }
+            else {
+                finish();
+            }
+        }
     }
 
     public void onButtonAddAccount(View v)
@@ -120,6 +152,17 @@ public class AccountSelector extends PreferenceActivity
         }
     }
 
+    @TargetApi(Build.VERSION_CODES.M)
+    private void showAccountChooser()
+    {
+        Intent chooseAccountIntent = AccountManager.newChooseAccountIntent(
+                account, null,
+                new String[]{ Settings.ACCOUNT_TYPE },
+                null,
+                Settings.TOKEN_TYPE, null, null);
+        startActivityForResult(chooseAccountIntent, REQUEST_ACCOUNT);
+    }
+
     private class OnCheckChanged
         implements Preference.OnPreferenceChangeListener
     {
@@ -141,7 +184,7 @@ public class AccountSelector extends PreferenceActivity
                 .putExtra(PicasaAlbumSource.EXTRA_USER_ID, "default")
                 .putExtra(PictureSourceContract.EXTRA_CLEAR_PREVIOUS,
                           ! ((CheckBoxPreference)preference).isChecked());
-            startActivityForResult(next, 0);
+            startActivityForResult(next, REQUEST_ALBUM);
             return false;
         }
     }
